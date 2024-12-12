@@ -272,7 +272,14 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 GestureDetector(
-                  onTap: () => _showListDialog('Following', _followingUsernames, _following),
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    '/following',
+                    arguments: {
+                      'userId': widget.userId,
+                      'isCurrentUser': false,
+                    },
+                  ),
                   child: Column(
                     children: [
                       Text(
@@ -287,7 +294,14 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => _showListDialog('Followers', _followerUsernames, _followers),
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    '/followers',
+                    arguments: {
+                      'userId': widget.userId,
+                      'isCurrentUser': false,
+                    },
+                  ),
                   child: Column(
                     children: [
                       Text(

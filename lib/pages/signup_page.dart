@@ -25,10 +25,6 @@ class _SignUpPageState extends State<SignUpPage> {
       _showErrorDialog('Passwords do not match.');
       return;
     }
-    if (!_usernameController.text.startsWith('@')) {
-      _showErrorDialog('Username must start with @.');
-      return;
-    }
 
     // Check if username already exists
     final username = _usernameController.text;
@@ -61,7 +57,10 @@ class _SignUpPageState extends State<SignUpPage> {
       });
 
       // Navigate to main page after successful sign-up
-      Navigator.pushNamed(context, '/main');
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/main',
+        (Route<dynamic> route) => false, // This removes all previous routes
+      );
     } catch (e) {
       String errorMessage = 'An error occurred. Please try again.';
       if (e is FirebaseAuthException) {

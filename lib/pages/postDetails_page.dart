@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class NewPostPage extends StatefulWidget {
-  const NewPostPage({Key? key}) : super(key: key);
+class PostDetailsPage extends StatefulWidget {
+  final List<Map<String, dynamic>> ingredients;
+  final int portions;
+
+  PostDetailsPage({required this.ingredients, required this.portions});
 
   @override
-  _NewPostPageState createState() => _NewPostPageState();
+  _PostDetailsPageState createState() => _PostDetailsPageState();
 }
 
-class _NewPostPageState extends State<NewPostPage> {
+class _PostDetailsPageState extends State<PostDetailsPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
@@ -27,10 +30,14 @@ class _NewPostPageState extends State<NewPostPage> {
       return;
     }
 
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
+    final List<XFile>? images = await _picker.pickMultiImage();
+    if (images != null) {
       setState(() {
-        _selectedImages.add(File(image.path));
+        for (var image in images) {
+          if (_selectedImages.length < 5) {
+            _selectedImages.add(File(image.path));
+          }
+        }
       });
     }
   }
@@ -42,9 +49,9 @@ class _NewPostPageState extends State<NewPostPage> {
   }
 
   Future<void> _submitPost() async {
-    if (_titleController.text.isEmpty || _descriptionController.text.isEmpty) {
+    if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please fill in all fields')),
+        SnackBar(content: Text('Please enter a title')),
       );
       return;
     }
@@ -54,39 +61,38 @@ class _NewPostPageState extends State<NewPostPage> {
     });
 
     try {
-      String userId = FirebaseAuth.instance.currentUser!.uid;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not logged in');
+
+      // Upload images to Firebase Storage
       List<String> imageUrls = [];
-
-      // Upload each image and get URLs
       for (File image in _selectedImages) {
-        String fileName = '${DateTime.now().millisecondsSinceEpoch}_${imageUrls.length}';
-        Reference ref = FirebaseStorage.instance
-            .ref()
-            .child('meal_posts')
-            .child(userId)
-            .child(fileName);
-
+        String fileName = 'posts/${DateTime.now().millisecondsSinceEpoch}_${imageUrls.length}.jpg';
+        Reference ref = FirebaseStorage.instance.ref().child(fileName);
         await ref.putFile(image);
         String downloadUrl = await ref.getDownloadURL();
         imageUrls.add(downloadUrl);
       }
 
-      // Create the post document
+      // Create post document in Firestore
       await FirebaseFirestore.instance.collection('mealPosts').add({
-        'userId': userId,
+        'userId': user.uid,
         'mealTitle': _titleController.text,
         'mealDescription': _descriptionController.text,
-        'imageUrls': imageUrls, // Now storing multiple image URLs
+        'ingredients': widget.ingredients,
+        'portions': widget.portions,
+        'imageUrls': imageUrls,
         'timestamp': FieldValue.serverTimestamp(),
         'likes': [],
         'comments': [],
       });
 
-      Navigator.pop(context);
+      // Navigate back to main page after successful post
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
-      print('Error creating post: $e');
+      print('Error submitting post: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to create post')),
+        SnackBar(content: Text('Failed to submit post. Please try again.')),
       );
     } finally {
       setState(() {
@@ -97,20 +103,19 @@ class _NewPostPageState extends State<NewPostPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('New Post'),
-        actions: [
-          if (!_isLoading)
-            IconButton(
-              icon: Icon(Icons.check),
-              onPressed: _submitPost,
-            ),
-        ],
-      ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Post Details'),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Stack(
+          children: [
+            SingleChildScrollView(
               padding: EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -167,11 +172,26 @@ class _NewPostPageState extends State<NewPostPage> {
                   ElevatedButton.icon(
                     onPressed: _pickImage,
                     icon: Icon(Icons.add_photo_alternate),
-                    label: Text('Add Image (${_selectedImages.length}/5)'),
+                    label: Text('Add Images (${_selectedImages.length}/5)'),
+                  ),
+                  SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _submitPost,
+                    child: Text('Post'),
                   ),
                 ],
               ),
             ),
+            if (_isLoading)
+              Container(
+                color: Colors.black54,
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

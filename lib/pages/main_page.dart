@@ -6,25 +6,29 @@ import 'package:fluttertest/pages/profile_page.dart';
 import 'package:fluttertest/pages/accountSettings_page.dart';
 import 'package:fluttertest/pages/discover_page.dart';
 import 'package:fluttertest/pages/friends_page.dart';
+import 'package:fluttertest/pages/ingredientsInput_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
   @override
-  State createState() => _MainPageState(); // Specify the type
+  State createState() => _MainPageState();
 }
 
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
   void _navigateBottomBar(int index) {
+    if (index == 1) {
+      Navigator.pushNamed(context, '/newPost');
+      return;
+    }
     setState(() {
-      _selectedIndex = index;
+      _selectedIndex = index == 2 ? 1 : 0;
     });
   }
 
   final List _pages = [
-    DiscoverPage(),
     FriendsPage(),
     ProfilePage(),
   ];
@@ -32,26 +36,23 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_selectedIndex], // Correctly set the body
+      body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
+        currentIndex: _selectedIndex == 0 ? 0 : 2,
         onTap: _navigateBottomBar,
-        selectedItemColor: const Color(0xFF25242A), // Dark color for selected icon
-        unselectedItemColor: const Color(0xFFB0B0B0), // Faded gray for unselected icons
-        backgroundColor: const Color(0xFFFAF8F5), // Lighter beige background
-        elevation: 5.0, // Slight shadow for the bottom bar for separation
+        selectedItemColor: const Color(0xFF25242A),
+        unselectedItemColor: const Color(0xFFB0B0B0),
+        backgroundColor: const Color(0xFFFAF8F5),
+        elevation: 5.0,
         items: [
-          // Discover
           BottomNavigationBarItem(
-            icon: Icon(Icons.star),
-            label: 'Discover',
+            icon: Icon(Icons.feed),
+            label: 'Feed',
           ),
-          // Friends
           BottomNavigationBarItem(
-            icon: Icon(Icons.people),
-            label: 'Friends',
+            icon: Icon(Icons.add_circle),
+            label: 'New Post',
           ),
-          // Profile
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',

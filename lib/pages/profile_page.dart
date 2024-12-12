@@ -331,6 +331,10 @@ class _ProfilePageState extends State<ProfilePage> {
         title: Text('@$_username'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+          ),
+          IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => _navigateToSettings(),
           ),
@@ -387,7 +391,14 @@ class _ProfilePageState extends State<ProfilePage> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     GestureDetector(
-                      onTap: () => _showListDialog('Following', _followingUsernames),
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        '/following',
+                        arguments: {
+                          'userId': _auth.currentUser!.uid,
+                          'isCurrentUser': true,
+                        },
+                      ),
                       child: Column(
                         children: [
                           Text(
@@ -402,7 +413,14 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => _showListDialog('Followers', _followerUsernames),
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        '/followers',
+                        arguments: {
+                          'userId': _auth.currentUser!.uid,
+                          'isCurrentUser': true,
+                        },
+                      ),
                       child: Column(
                         children: [
                           Text(

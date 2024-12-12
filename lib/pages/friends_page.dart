@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertest/pages/searchFriends_page.dart';
 import 'package:fluttertest/pages/comments_page.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class FriendsPage extends StatefulWidget {
@@ -16,6 +18,8 @@ class _FriendsPageState extends State<FriendsPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   List<String> _following = [];
   List<Map<String, dynamic>> _mealPosts = [];
+  final String _followingCacheKey = 'following_cache';
+  final String _postsDataCacheKey = 'posts_cache';
 
   @override
   void initState() {
@@ -30,13 +34,25 @@ class _FriendsPageState extends State<FriendsPage> {
 
   Future<void> _loadFollowing() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedFollowing = prefs.getStringList(_followingCacheKey);
+      
+      if (cachedFollowing != null && mounted) {
+        setState(() {
+          _following = cachedFollowing;
+        });
+      }
+
       String userId = _auth.currentUser!.uid;
       DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
 
       if (mounted) {
+        final following = List<String>.from(userDoc['following'] ?? []);
         setState(() {
-          _following = List<String>.from(userDoc['following'] ?? []);
+          _following = following;
         });
+        
+        await prefs.setStringList(_followingCacheKey, following);
       }
     } catch (e) {
       print("Error loading following list: $e");
@@ -48,6 +64,18 @@ class _FriendsPageState extends State<FriendsPage> {
 
   Future<void> _loadFriendsMealPosts() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedPosts = prefs.getString(_postsDataCacheKey);
+      
+      if (cachedPosts != null && mounted) {
+        final decodedPosts = List<Map<String, dynamic>>.from(
+          jsonDecode(cachedPosts).map((x) => Map<String, dynamic>.from(x))
+        );
+        setState(() {
+          _mealPosts = decodedPosts;
+        });
+      }
+
       if (_following.isNotEmpty) {
         List<Map<String, dynamic>> allPosts = [];
         for (int i = 0; i < _following.length; i += 10) {
@@ -64,6 +92,10 @@ class _FriendsPageState extends State<FriendsPage> {
           allPosts.addAll(
             mealPostsSnapshot.docs.map((doc) {
               var data = doc.data() as Map<String, dynamic>;
+              String timestamp = data['timestamp'] != null 
+                  ? (data['timestamp'] as Timestamp).toDate().toIso8601String()
+                  : DateTime.now().toIso8601String();
+                
               return {
                 'id': doc.id,
                 'userId': data['userId'] ?? 'Unknown',
@@ -72,7 +104,7 @@ class _FriendsPageState extends State<FriendsPage> {
                 'imageUrls': data['imageUrls'] ?? [],
                 'likes': data['likes'] ?? [],
                 'comments': data['comments'] ?? [],
-                'timestamp': data['timestamp'] ?? DateTime.now(),
+                'timestamp': timestamp,
               };
             }).toList(),
           );
@@ -82,13 +114,17 @@ class _FriendsPageState extends State<FriendsPage> {
           setState(() {
             _mealPosts = allPosts;
           });
+          
+          await prefs.setString(_postsDataCacheKey, jsonEncode(allPosts));
         }
       }
     } catch (e) {
       print("Error loading friends' meal posts: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to load meal posts. Please try again.")),
-      );
+      if (mounted && _mealPosts.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to load meal posts. Please try again.")),
+        );
+      }
     }
   }
 
@@ -135,13 +171,7 @@ class _FriendsPageState extends State<FriendsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home'),
-        leading: IconButton(
-          icon: const Icon(Icons.add),
-          onPressed: () {
-            Navigator.pushNamed(context, '/newPost');
-          },
-        ),
+        title: const Text('Feed'),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -173,9 +203,7 @@ class _FriendsPageState extends State<FriendsPage> {
                 itemCount: _mealPosts.length,
                 itemBuilder: (context, index) {
                   final post = _mealPosts[index];
-                  final timestamp = post['timestamp'] is DateTime
-                      ? (post['timestamp'] as DateTime)
-                      : (post['timestamp'] as Timestamp).toDate();
+                  final timestamp = DateTime.parse(post['timestamp'] as String);
 
                   return Card(
                     margin: const EdgeInsets.all(8.0),
