@@ -121,6 +121,7 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
       QuerySnapshot postDocs = await FirebaseFirestore.instance
           .collection('mealPosts')
           .where('userId', isEqualTo: widget.userId)
+          .orderBy('timestamp', descending: true)
           .get();
 
       setState(() {

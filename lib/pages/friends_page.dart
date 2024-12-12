@@ -111,6 +111,9 @@ class _FriendsPageState extends State<FriendsPage> {
         }
 
         if (mounted) {
+          // Sort posts by timestamp in descending order
+          allPosts.sort((a, b) => DateTime.parse(b['timestamp']).compareTo(DateTime.parse(a['timestamp'])));
+
           setState(() {
             _mealPosts = allPosts;
           });

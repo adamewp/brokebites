@@ -72,6 +72,7 @@ class _ProfilePageState extends State<ProfilePage> {
       QuerySnapshot postDocs = await FirebaseFirestore.instance
           .collection('mealPosts')
           .where('userId', isEqualTo: userId)
+          .orderBy('timestamp', descending: true)
           .get();
 
       setState(() {
