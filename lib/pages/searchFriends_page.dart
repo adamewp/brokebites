@@ -57,26 +57,40 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
       if (_searchQuery.isNotEmpty) {
         // Remove @ if user included it in search
         String searchTerm = _searchQuery.startsWith('@') 
-            ? _searchQuery.substring(1) 
-            : _searchQuery;
+            ? _searchQuery.substring(1).toLowerCase() 
+            : _searchQuery.toLowerCase();
         
+        // Create a compound query for better performance
         QuerySnapshot userDocs = await FirebaseFirestore.instance
             .collection('users')
-            .where('username', isGreaterThanOrEqualTo: searchTerm)
-            .where('username', isLessThanOrEqualTo: '$searchTerm\uf8ff')
+            .orderBy('username')
+            .startAt([searchTerm])
+            .endAt(['$searchTerm\uf8ff'])
+            .limit(10) // Limit results for better performance
             .get();
 
         if (mounted) {
           setState(() {
-            _searchResults = userDocs.docs.map((doc) {
-              var data = doc.data() as Map<String, dynamic>;
-              return {
-                'userId': doc['userId'],
-                'username': data['username'], // Stored without @
-              };
-            }).toList();
+            _searchResults = userDocs.docs
+                .where((doc) {
+                  // Cast the data to Map<String, dynamic>
+                  final data = doc.data() as Map<String, dynamic>?; 
+                  return doc.exists && data != null && data.containsKey('userId') && data['userId'] != currentUserId; // Check for existence and userId
+                })
+                .map((doc) {
+                  var data = doc.data() as Map<String, dynamic>;
+                  return {
+                    'userId': data['userId'], // Access userId safely
+                    'username': data['username'],
+                  };
+                })
+                .toList();
           });
         }
+      } else {
+        setState(() {
+          _searchResults = [];
+        });
       }
     } catch (e) {
       print("Error searching users: $e");
@@ -197,6 +211,12 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
                   },
                 ),
               ),
+              onSubmitted: (value) {
+                setState(() {
+                  _searchQuery = value.trim();
+                });
+                _searchUsers();
+              },
             ),
           ),
           Expanded(
