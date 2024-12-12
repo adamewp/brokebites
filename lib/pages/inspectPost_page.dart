@@ -107,6 +107,57 @@ class _InspectPostPageState extends State<InspectPostPage> {
     }
   }
 
+  Widget _buildIngredientsList() {
+    if (_postData!['ingredients'] == null || (_postData!['ingredients'] as List).isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Text(
+          'No ingredients available.',
+          style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Ingredients',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: (_postData!['ingredients'] as List).length,
+            itemBuilder: (context, index) {
+              final ingredient = _postData!['ingredients'][index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        ingredient['name'],
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                    Text(
+                      '${ingredient['amount']} ${ingredient['unit']}',
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_postData == null || _userData == null) {
@@ -261,6 +312,9 @@ class _InspectPostPageState extends State<InspectPostPage> {
                 ),
               ),
             ),
+
+            // Add the ingredients list here
+            _buildIngredientsList(),
           ],
         ),
       ),
