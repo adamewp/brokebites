@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:fluttertest/pages/startup_page.dart';
 import 'package:fluttertest/pages/signup_page.dart';
 import 'package:fluttertest/pages/login_page.dart';
-import 'package:fluttertest/pages/discover_page.dart';
 import 'package:fluttertest/pages/profile_page.dart';
 import 'package:fluttertest/pages/accountSettings_page.dart';
 import 'package:fluttertest/pages/friends_page.dart';
@@ -78,7 +77,6 @@ class MyApp extends StatelessWidget {
         '/main': (context) => const MainPage(),
         '/login': (context) => const LogInPage(),
         '/signup': (context) => const SignUpPage(),
-        '/discover': (context) => const DiscoverPage(),
         '/profile': (context) => const ProfilePage(),
         '/newPost': (context) => IngredientsPage(
           onNext: (ingredients, portions) {

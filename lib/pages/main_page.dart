@@ -4,23 +4,41 @@ import 'package:fluttertest/pages/signup_page.dart';
 import 'package:fluttertest/pages/login_page.dart';
 import 'package:fluttertest/pages/profile_page.dart';
 import 'package:fluttertest/pages/accountSettings_page.dart';
-import 'package:fluttertest/pages/discover_page.dart';
 import 'package:fluttertest/pages/friends_page.dart';
 import 'package:fluttertest/pages/ingredientsInput_page.dart';
+import 'package:fluttertest/pages/newPost_flow.dart';
 
-class MainPage extends StatefulWidget {
+class MainPage extends StatelessWidget {
   const MainPage({super.key});
 
   @override
-  State createState() => _MainPageState();
+  Widget build(BuildContext context) {
+    return const MainPageContent();
+  }
 }
 
-class _MainPageState extends State<MainPage> {
+class MainPageContent extends StatefulWidget {
+  const MainPageContent({super.key});
+
+  @override
+  _MainPageContentState createState() => _MainPageContentState();
+}
+
+class _MainPageContentState extends State<MainPageContent> {
   int _selectedIndex = 0;
+  
+  static const List<Widget> _pages = [
+    FriendsPage(),
+    ProfilePage(),
+  ];
 
   void _navigateBottomBar(int index) {
     if (index == 1) {
-      Navigator.pushNamed(context, '/newPost');
+      Navigator.of(context).push(
+        CupertinoPageRoute(
+          builder: (context) => const NewPostFlow(),
+        ),
+      );
       return;
     }
     setState(() {
@@ -28,18 +46,16 @@ class _MainPageState extends State<MainPage> {
     });
   }
 
-  final List _pages = [
-    FriendsPage(),
-    ProfilePage(),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       backgroundColor: const Color(0xFFFAF8F5),
       child: Stack(
         children: [
-          _pages[_selectedIndex],
+          IndexedStack(
+            index: _selectedIndex,
+            children: _pages,
+          ),
           Positioned(
             left: 0,
             right: 0,

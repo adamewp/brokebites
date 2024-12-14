@@ -5,21 +5,21 @@ import 'package:fluttertest/pages/searchFriends_page.dart';
 import 'package:fluttertest/pages/comments_page.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart' show CircleAvatar;
 
 
 class FriendsPage extends StatefulWidget {
-  const FriendsPage({Key? key}) : super(key: key);
+  const FriendsPage({super.key});
 
   @override
-  _FriendsPageState createState() => _FriendsPageState();
+  State<FriendsPage> createState() => _FriendsPageState();
 }
 
 class _FriendsPageState extends State<FriendsPage> {
+  final List<Map<String, dynamic>> _mealPosts = [];
+  bool _isLoading = true;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   List<String> _following = [];
-  List<Map<String, dynamic>> _mealPosts = [];
-  final String _followingCacheKey = 'following_cache';
-  final String _postsDataCacheKey = 'posts_cache';
 
   @override
   void initState() {
@@ -27,227 +27,146 @@ class _FriendsPageState extends State<FriendsPage> {
     _loadFollowingAndPosts();
   }
 
+  Future<void> _loadPosts() async {
+    try {
+      // First load following list
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_auth.currentUser?.uid)
+          .get();
+
+      if (!userDoc.exists) return;
+
+      _following = List<String>.from(userDoc.data()?['following'] ?? []);
+
+      if (_following.isEmpty) {
+        setState(() {
+          _mealPosts.clear();
+        });
+        return;
+      }
+
+      // Then load posts from following users
+      final QuerySnapshot postDocs = await FirebaseFirestore.instance
+          .collection('mealPosts')
+          .where('userId', whereIn: _following)
+          .orderBy('timestamp', descending: true)
+          .limit(20)
+          .get();
+
+      final posts = postDocs.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'postId': doc.id,
+          'userId': data['userId'],
+          'mealTitle': data['mealTitle'],
+          'mealDescription': data['mealDescription'],
+          'imageUrls': data['imageUrls'],
+          'timestamp': data['timestamp'],
+        };
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _mealPosts.clear();
+          _mealPosts.addAll(posts);
+        });
+      }
+    } catch (e) {
+      print('Error loading posts: $e');
+      rethrow;
+    }
+  }
+
   Future<void> _loadFollowingAndPosts() async {
-    await _loadFollowing();
-    await _loadFriendsMealPosts();
-  }
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
 
-  Future<void> _loadFollowing() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final cachedFollowing = prefs.getStringList(_followingCacheKey);
-      
-      if (cachedFollowing != null && mounted) {
-        setState(() {
-          _following = cachedFollowing;
-        });
-      }
-
-      String userId = _auth.currentUser!.uid;
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-
-      if (mounted) {
-        final following = List<String>.from(userDoc['following'] ?? []);
-        setState(() {
-          _following = following;
-        });
-        
-        await prefs.setStringList(_followingCacheKey, following);
-      }
+      await _loadPosts();
     } catch (e) {
-      print("Error loading following list: $e");
+      print('Error loading posts: $e');
       if (mounted) {
-        _showErrorMessage("Failed to load following list.");
-      }
-    }
-  }
-
-  Future<void> _loadFriendsMealPosts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cachedPosts = prefs.getString(_postsDataCacheKey);
-      
-      if (cachedPosts != null && mounted) {
-        final decodedPosts = List<Map<String, dynamic>>.from(
-          jsonDecode(cachedPosts).map((x) => Map<String, dynamic>.from(x))
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('Error'),
+            content: const Text('Failed to load posts'),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('OK'),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
         );
+      }
+    } finally {
+      if (mounted) {
         setState(() {
-          _mealPosts = decodedPosts;
+          _isLoading = false;
         });
-      }
-
-      if (_following.isNotEmpty) {
-        List<Map<String, dynamic>> allPosts = [];
-        for (int i = 0; i < _following.length; i += 10) {
-          var chunk = _following.sublist(
-            i,
-            i + 10 > _following.length ? _following.length : i + 10,
-          );
-
-          QuerySnapshot mealPostsSnapshot = await FirebaseFirestore.instance
-              .collection('mealPosts')
-              .where('userId', whereIn: chunk)
-              .get();
-
-          allPosts.addAll(
-            mealPostsSnapshot.docs.map((doc) {
-              var data = doc.data() as Map<String, dynamic>;
-              String timestamp = data['timestamp'] != null 
-                  ? (data['timestamp'] as Timestamp).toDate().toIso8601String()
-                  : DateTime.now().toIso8601String();
-                
-              return {
-                'id': doc.id,
-                'userId': data['userId'] ?? 'Unknown',
-                'mealDescription': data['mealDescription'] ?? 'No Description',
-                'mealTitle': data['mealTitle'] ?? 'No Title',
-                'imageUrls': data['imageUrls'] ?? [],
-                'likes': data['likes'] ?? [],
-                'comments': data['comments'] ?? [],
-                'timestamp': timestamp,
-              };
-            }).toList(),
-          );
-        }
-
-        if (mounted) {
-          allPosts.sort((a, b) => DateTime.parse(b['timestamp']).compareTo(DateTime.parse(a['timestamp'])));
-          setState(() {
-            _mealPosts = allPosts;
-          });
-          await prefs.setString(_postsDataCacheKey, jsonEncode(allPosts));
-        }
-      }
-    } catch (e) {
-      print("Error loading friends' meal posts: $e");
-      if (mounted && _mealPosts.isEmpty) {
-        _showErrorMessage("Failed to load meal posts. Please try again.");
       }
     }
   }
 
-  Future<void> _likePost(String postId) async {
-    try {
-      String currentUserId = _auth.currentUser!.uid;
-      DocumentReference postRef = FirebaseFirestore.instance.collection('mealPosts').doc(postId);
-
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        DocumentSnapshot postSnapshot = await transaction.get(postRef);
-
-        if (!postSnapshot.exists) {
-          throw Exception("Post does not exist!");
-        }
-
-        List<dynamic> likes = List.from(postSnapshot['likes'] ?? []);
-
-        if (likes.contains(currentUserId)) {
-          likes.remove(currentUserId);
-        } else {
-          likes.add(currentUserId);
-        }
-
-        transaction.update(postRef, {
-          'likes': likes,
-        });
-
-        setState(() {
-          int postIndex = _mealPosts.indexWhere((post) => post['id'] == postId);
-          if (postIndex != -1) {
-            _mealPosts[postIndex]['likes'] = likes;
-          }
-        });
-      });
-    } catch (e) {
-      print("Error liking/unliking post: $e");
-      _showErrorMessage("Failed to like/unlike post. Please try again.");
+  Widget _buildPostImage(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return const SizedBox.shrink();
     }
-  }
 
-  void _showErrorMessage(String message) {
-    showCupertinoDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return CupertinoAlertDialog(
-          title: const Text('Error'),
-          content: Text(message),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+    return Container(
+      height: 300,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CupertinoActivityIndicator(
+              radius: 20,
+              color: CupertinoColors.systemGrey.withOpacity(0.6),
             ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: const Color(0xFFFAF8F5),
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: const Color(0xFFFAF8F5),
-        middle: const Text('Feed'),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: const Icon(
-            CupertinoIcons.search,
-            color: Color(0xFF25242A),
-          ),
-          onPressed: () {
-            Navigator.push(
-              context,
-              CupertinoPageRoute(builder: (context) => const SearchFriendsPage()),
-            );
-          },
-        ),
-      ),
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          CupertinoSliverRefreshControl(
-            onRefresh: _loadFollowingAndPosts,
-          ),
-          SliverToBoxAdapter(
-            child: _mealPosts.isEmpty
-                ? Container(
-                    padding: const EdgeInsets.only(top: 100),
-                    child: const Center(
-                      child: Text(
-                        'No meal posts from friends yet.',
-                        style: TextStyle(
-                          color: CupertinoColors.systemGrey,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      children: _mealPosts.map((post) {
-                        final timestamp = DateTime.parse(post['timestamp'] as String);
-                        return _buildPostCard(post, timestamp);
-                      }).toList(),
-                    ),
-                  ),
-          ),
-        ],
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: CupertinoColors.systemGrey6,
+            child: const Center(
+              child: Icon(
+                CupertinoIcons.photo,
+                size: 40,
+                color: CupertinoColors.systemGrey,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildPostCard(Map<String, dynamic> post, DateTime timestamp) {
+  Widget _buildPostCard(Map<String, dynamic> post) {
+    final timestamp = post['timestamp'] is DateTime 
+        ? post['timestamp'] as DateTime
+        : (post['timestamp'] as Timestamp).toDate();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: CupertinoColors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: CupertinoColors.systemGrey.withOpacity(0.1),
+            color: Color(0x1A000000),
             blurRadius: 10,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -257,64 +176,14 @@ class _FriendsPageState extends State<FriendsPage> {
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                _buildUserAvatar(post['userId']),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(post['userId'])
-                        .get(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const CupertinoActivityIndicator();
-                      }
-                      if (snapshot.hasData && snapshot.data!.exists) {
-                        var userData = snapshot.data!.data() as Map<String, dynamic>;
-                        return GestureDetector(
-                          onTap: () => Navigator.pushNamed(
-                            context,
-                            '/otherProfile',
-                            arguments: post['userId'],
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  image: userData['profileImageUrl'] != null
-                                      ? DecorationImage(
-                                          image: NetworkImage(userData['profileImageUrl']),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
-                                ),
-                                child: userData['profileImageUrl'] == null
-                                    ? const Icon(CupertinoIcons.person_fill)
-                                    : null,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  userData['username'] ?? 'Unknown User',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF25242A),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return const Text('Unknown User');
-                    },
-                  ),
+                  child: _buildUserInfo(post['userId']),
                 ),
                 Text(
-                  _formatTimestamp(timestamp),
+                  _getTimeAgo(timestamp),
                   style: const TextStyle(
                     color: CupertinoColors.systemGrey,
                     fontSize: 12,
@@ -323,33 +192,15 @@ class _FriendsPageState extends State<FriendsPage> {
               ],
             ),
           ),
-          if (post['imageUrls'] != null && (post['imageUrls'] as List).isNotEmpty)
+          if (post['imageUrls'] != null && 
+              (post['imageUrls'] as List).isNotEmpty)
             SizedBox(
               height: 300,
               child: PageView.builder(
                 itemCount: (post['imageUrls'] as List).length,
-                itemBuilder: (context, imageIndex) {
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      post['imageUrls'][imageIndex],
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return const Center(
-                          child: CupertinoActivityIndicator(),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Center(
-                          child: Icon(
-                            CupertinoIcons.exclamationmark_triangle,
-                            color: CupertinoColors.systemGrey,
-                          ),
-                        );
-                      },
-                    ),
-                  );
+                itemBuilder: (context, index) {
+                  final imageUrl = post['imageUrls'][index];
+                  return _buildPostImage(imageUrl);
                 },
               ),
             ),
@@ -359,55 +210,23 @@ class _FriendsPageState extends State<FriendsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  post['mealTitle'],
+                  post['mealTitle'] ?? 'Untitled Meal',
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF25242A),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  post['mealDescription'],
-                  style: const TextStyle(
-                    color: CupertinoColors.systemGrey,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      child: Icon(
-                        post['likes'].contains(_auth.currentUser!.uid)
-                            ? CupertinoIcons.heart_fill
-                            : CupertinoIcons.heart,
-                        color: post['likes'].contains(_auth.currentUser!.uid)
-                            ? CupertinoColors.systemRed
-                            : CupertinoColors.systemGrey,
-                      ),
-                      onPressed: () => _likePost(post['id']),
-                    ),
-                    Text('${post['likes'].length}'),
-                    const SizedBox(width: 16),
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      child: const Icon(
-                        CupertinoIcons.chat_bubble,
+                if (post['mealDescription'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      post['mealDescription'],
+                      style: const TextStyle(
+                        fontSize: 14,
                         color: CupertinoColors.systemGrey,
                       ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          CupertinoPageRoute(
-                            builder: (context) => CommentsPage(postId: post['id']),
-                          ),
-                        );
-                      },
                     ),
-                    Text('${post['comments'].length}'),
-                  ],
-                ),
+                  ),
               ],
             ),
           ),
@@ -416,20 +235,132 @@ class _FriendsPageState extends State<FriendsPage> {
     );
   }
 
-  String _formatTimestamp(DateTime timestamp) {
+  Widget _buildUserAvatar(String userId) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const CircleAvatar(
+            radius: 20,
+            backgroundColor: CupertinoColors.systemGrey5,
+          );
+        }
+
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
+        final profileImageUrl = userData['profileImageUrl'] as String?;
+
+        if (profileImageUrl == null || profileImageUrl.isEmpty) {
+          return const CircleAvatar(
+            radius: 20,
+            backgroundColor: CupertinoColors.systemGrey5,
+            child: Icon(
+              CupertinoIcons.person_fill,
+              color: CupertinoColors.systemGrey2,
+            ),
+          );
+        }
+
+        return CircleAvatar(
+          radius: 20,
+          backgroundImage: NetworkImage(profileImageUrl),
+          onBackgroundImageError: (_, __) {},
+          child: const Icon(
+            CupertinoIcons.person_fill,
+            color: CupertinoColors.systemGrey2,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUserInfo(String userId) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const CupertinoActivityIndicator();
+        }
+
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              userData['username'] ?? 'Unknown User',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _getTimeAgo(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
 
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} min ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours} hrs ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()}y';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()}mo';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays}d';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m';
     } else {
-      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+      return 'now';
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0xFFFAF8F5),
+      navigationBar: const CupertinoNavigationBar(
+        backgroundColor: Color(0xFFFAF8F5),
+        middle: Text('Feed'),
+      ),
+      child: _isLoading
+          ? const Center(child: CupertinoActivityIndicator())
+          : CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                CupertinoSliverRefreshControl(
+                  onRefresh: _loadFollowingAndPosts,
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.all(8.0),
+                  sliver: _mealPosts.isEmpty
+                      ? const SliverFillRemaining(
+                          child: Center(
+                            child: Text(
+                              'No posts yet',
+                              style: TextStyle(
+                                color: CupertinoColors.systemGrey,
+                              ),
+                            ),
+                          ),
+                        )
+                      : SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) => _buildPostCard(_mealPosts[index]),
+                            childCount: _mealPosts.length,
+                          ),
+                        ),
+                ),
+              ],
+            ),
+    );
   }
 }

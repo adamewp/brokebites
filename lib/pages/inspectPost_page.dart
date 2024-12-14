@@ -283,13 +283,16 @@ class _InspectPostPageState extends State<InspectPostPage> {
                   child: PageView.builder(
                     itemCount: (_postData!['imageUrls'] as List).length,
                     itemBuilder: (context, index) {
-                      return CachedNetworkImage(
-                        imageUrl: _postData!['imageUrls'][index],
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            const Center(child: CupertinoActivityIndicator()),
-                        errorWidget: (context, url, error) =>
-                            const Icon(CupertinoIcons.exclamationmark_triangle),
+                      return Hero(
+                        tag: 'post-${widget.postId}-image-$index',
+                        child: CachedNetworkImage(
+                          imageUrl: _postData!['imageUrls'][index],
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) =>
+                              const Center(child: CupertinoActivityIndicator()),
+                          errorWidget: (context, url, error) =>
+                              const Icon(CupertinoIcons.exclamationmark_triangle),
+                        ),
                       );
                     },
                   ),

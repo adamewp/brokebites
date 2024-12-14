@@ -38,10 +38,21 @@ class _IngredientsPageState extends State<IngredientsPage> {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('Add Ingredients'),
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('Add Ingredients'),
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(CupertinoIcons.back),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+        backgroundColor: const Color(0xFFFAF8F5),
+        transitionBetweenRoutes: false,
       ),
+      backgroundColor: const Color(0xFFFAF8F5),
       child: SafeArea(
+        top: false,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(

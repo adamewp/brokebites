@@ -42,6 +42,8 @@ dependencies:
   cached_network_image: ^3.3.0
   smooth_page_indicator: ^1.2.0+3
   shared_preferences: ^2.2.2
+  image: ^4.0.15
+  path_provider: ^2.0.15
   
 
 dev_dependencies:

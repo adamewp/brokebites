@@ -5,15 +5,42 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:image/image.dart' as Im;
+import 'package:path_provider/path_provider.dart';
+import 'dart:math';
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
-  _ProfilePageState createState() => _ProfilePageState();
+  Widget build(BuildContext context) {
+    return const ProfileScaffold();
+  }
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class ProfileScaffold extends StatelessWidget {
+  const ProfileScaffold({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0xFFFAF8F5),
+      child: ProfileContent(),
+    );
+  }
+}
+
+class ProfileContent extends StatefulWidget {
+  const ProfileContent({super.key});
+
+  @override
+  _ProfileContentState createState() => _ProfileContentState();
+}
+
+class _ProfileContentState extends State<ProfileContent> {
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -27,6 +54,11 @@ class _ProfilePageState extends State<ProfilePage> {
   List<String> _followerUsernames = [];
   String? _profileImageUrl;
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  bool _isLoadingMore = false;
+  bool _hasMorePosts = true;
+  final int _postsPerPage = 10;
+  DocumentSnapshot? _lastDocument;
+  final String _postsDataCacheKey = 'postsDataCacheKey';
 
   @override
   void initState() {
@@ -307,9 +339,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: PageView.builder(
                   itemCount: (post['imageUrls'] as List).length,
                   itemBuilder: (context, imageIndex) {
-                    return Image.network(
-                      post['imageUrls'][imageIndex],
-                      fit: BoxFit.cover,
+                    return Hero(
+                      tag: 'post-${post['postId']}-image-$imageIndex',
+                      child: Image.network(
+                        post['imageUrls'][imageIndex],
+                        fit: BoxFit.cover,
+                      ),
                     );
                   },
                 ),
@@ -399,6 +434,153 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Future<void> _loadMorePosts() async {
+    if (_isLoadingMore) return;
+    
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      Query query = FirebaseFirestore.instance
+          .collection('mealPosts')
+          .where('userId', whereIn: _following)
+          .orderBy('timestamp', descending: true)
+          .limit(_postsPerPage);
+
+      if (_lastDocument != null) {
+        query = query.startAfterDocument(_lastDocument!);
+      }
+
+      QuerySnapshot snapshot = await query.get();
+      
+      if (snapshot.docs.isEmpty) {
+        setState(() {
+          _hasMorePosts = false;
+          _isLoadingMore = false;
+        });
+        return;
+      }
+
+      _lastDocument = snapshot.docs.last;
+
+      List<Map<String, dynamic>> newPosts = snapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        return {
+          'postId': doc.id,
+          ...data,
+        };
+      }).toList();
+
+      setState(() {
+        _posts.addAll(newPosts);
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      print('Error loading more posts: $e');
+      setState(() {
+        _isLoadingMore = false;
+      });
+    }
+  }
+
+  Future<void> _loadFollowingAndPosts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cachedData = prefs.getString(_postsDataCacheKey);
+    
+    if (cachedData != null) {
+      setState(() {
+        _posts = List<Map<String, dynamic>>.from(
+          json.decode(cachedData).map((x) => Map<String, dynamic>.from(x))
+        );
+      });
+    }
+    
+    await _loadFollowing();
+    await _loadFriendsMealPosts();
+  }
+
+  Future<File> _compressImage(File file) async {
+    final tempDir = await getTemporaryDirectory();
+    final path = tempDir.path;
+    int rand = Random().nextInt(10000);
+
+    Im.Image? image = Im.decodeImage(file.readAsBytesSync());
+    if (image == null) return file;
+    
+    Im.Image smallerImage = Im.copyResize(image, width: 1024); // Fixed width, maintain aspect ratio
+    
+    final compressedImage = File('$path/img_$rand.jpg')
+      ..writeAsBytesSync(Im.encodeJpg(smallerImage, quality: 85));
+      
+    return compressedImage;
+  }
+
+  Future<void> _loadFollowing() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (!userDoc.exists) return;
+
+      setState(() {
+        _following = List<String>.from(userDoc.data()?['following'] ?? []);
+      });
+
+      // Load usernames for following
+      _followingUsernames = [];
+      for (String userId in _following) {
+        final followingDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
+        
+        if (followingDoc.exists) {
+          setState(() {
+            _followingUsernames.add(followingDoc.data()?['username'] ?? '');
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading following: $e');
+    }
+  }
+
+  Future<void> _loadFriendsMealPosts() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Get posts from Firestore
+      final QuerySnapshot postDocs = await FirebaseFirestore.instance
+          .collection('mealPosts')
+          .where('userId', isEqualTo: user.uid)
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      // Convert the documents to a list of maps
+      List<Map<String, dynamic>> posts = postDocs.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        return {
+          'postId': doc.id,
+          ...data,
+        };
+      }).toList();
+
+      setState(() {
+        _posts = posts;
+      });
+
+    } catch (e) {
+      print('Error loading posts: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
@@ -426,28 +608,42 @@ class _ProfilePageState extends State<ProfilePage> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  GestureDetector(
-                    onTap: _updateProfileImage,
-                    child: Container(
+                  CachedNetworkImage(
+                    imageUrl: _profileImageUrl ?? '',
+                    imageBuilder: (context, imageProvider) => Container(
                       width: 100,
                       height: 100,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: CupertinoColors.systemGrey5,
-                        image: _profileImageUrl != null
-                            ? DecorationImage(
-                                image: NetworkImage(_profileImageUrl!),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
+                        image: DecorationImage(
+                          image: imageProvider,
+                          fit: BoxFit.cover,
+                        ),
                       ),
-                      child: _profileImageUrl == null
-                          ? const Icon(
-                              CupertinoIcons.person_fill,
-                              size: 50,
-                              color: CupertinoColors.systemGrey,
-                            )
-                          : null,
+                    ),
+                    placeholder: (context, url) => Container(
+                      width: 100,
+                      height: 100,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: CupertinoColors.systemGrey5,
+                      ),
+                      child: const Center(
+                        child: CupertinoActivityIndicator(),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: 100,
+                      height: 100,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: CupertinoColors.systemGrey5,
+                      ),
+                      child: const Icon(
+                        CupertinoIcons.person_fill,
+                        size: 50,
+                        color: CupertinoColors.systemGrey,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -549,6 +745,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: _posts.length,
                     itemBuilder: (context, index) {
+                      if (index >= _posts.length - 5 && !_isLoadingMore && _hasMorePosts) {
+                        _loadMorePosts();
+                      }
                       return _buildPostItem(_posts[index]);
                     },
                   ),
