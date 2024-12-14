@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -13,6 +13,7 @@ class _LogInPageState extends State<LogInPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _obscurePassword = true;
 
   Future<void> _logIn() async {
     try {
@@ -56,14 +57,14 @@ class _LogInPageState extends State<LogInPage> {
   }
 
   void _showErrorDialog(String message) {
-    showDialog(
+    showCupertinoDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return CupertinoAlertDialog(
           title: const Text('Error'),
           content: Text(message),
           actions: [
-            TextButton(
+            CupertinoDialogAction(
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -81,36 +82,50 @@ class _LogInPageState extends State<LogInPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Log In'),
-        backgroundColor: const Color(0xFFF4EFDA),
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0xFFF4EFDA),
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Log In'),
+        backgroundColor: Color(0xFFF4EFDA),
       ),
-      body: GestureDetector(
+      child: GestureDetector(
         onTap: _dismissKeyboard,
-        child: AutofillGroup(
+        child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                TextField(
+                CupertinoTextField(
                   controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                  ),
+                  placeholder: 'Email',
                   keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
-                ),
-                TextField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: CupertinoColors.systemGrey),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  obscureText: true,
-                  autofillHints: const [AutofillHints.password],
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 12),
+                CupertinoTextField(
+                  controller: _passwordController,
+                  placeholder: 'Password',
+                  obscureText: _obscurePassword,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: CupertinoColors.systemGrey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  suffix: CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    child: Icon(
+                      _obscurePassword ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                    ),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
                 ),
                 const SizedBox(height: 20),
-                ElevatedButton(
+                CupertinoButton.filled(
                   onPressed: _logIn,
                   child: const Text('Log In'),
                 ),

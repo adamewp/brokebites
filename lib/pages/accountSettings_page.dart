@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -25,7 +25,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   final ImagePicker _picker = ImagePicker();
   File? _profileImage;
   List<bool> _selectedRestrictions = [false, false, false, false];
-  String _username = ''; // New variable for username
+  String _username = '';
 
   @override
   void dispose() {
@@ -57,14 +57,30 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         _lastNameController.text = data['lastName'] ?? '';
         _dobController.text = data['dob'] ?? '';
         _bioController.text = data['bio'] ?? '';
-        _username = data['username'] ?? ''; // Load username
+        _username = data['username'] ?? '';
         _selectedRestrictions = List.generate(_dietaryRestrictions.length, (index) {
           return data['dietaryRestrictions']?.contains(_dietaryRestrictions[index]) ?? false;
         });
       });
-    } else {
-      print('User document does not exist.');
     }
+  }
+
+  void _showErrorDialog(String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) {
+        return CupertinoAlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future _saveUserProfile() async {
@@ -81,37 +97,90 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
     try {
       String userId = _auth.currentUser!.uid;
+      
+      // Create a list of selected dietary restrictions
+      List<String> selectedDietaryRestrictions = [];
+      for (int i = 0; i < _selectedRestrictions.length; i++) {
+        if (_selectedRestrictions[i]) {
+          selectedDietaryRestrictions.add(_dietaryRestrictions[i]);
+        }
+      }
+
       Map<String, dynamic> userData = {
         'firstName': _firstNameController.text,
         'lastName': _lastNameController.text,
         'dob': _dobController.text,
         'bio': _bioController.text,
-        'dietaryRestrictions': _selectedRestrictions.asMap().entries
-            .where((entry) => entry.value)
-            .map((entry) => _dietaryRestrictions[entry.key])
-            .toList(),
+        'dietaryRestrictions': selectedDietaryRestrictions,  // Save as a list of strings
       };
 
-      await FirebaseFirestore.instance.collection('users').doc(userId).set(userData, SetOptions(merge: true));
-      
-      // Navigate back and indicate a refresh is needed
-      Navigator.pop(context, true); // Pass true to indicate a refresh
+      await FirebaseFirestore.instance.collection('users').doc(userId).update(userData);
+      Navigator.pop(context, true);
     } catch (e) {
       _showErrorDialog('Error saving profile: $e');
     }
   }
 
-  void _showErrorDialog(String message) {
-    showDialog(
+  Future<void> _saveDietaryRestrictions() async {
+    try {
+      String userId = _auth.currentUser!.uid;
+      
+      // Create a list of selected dietary restrictions
+      List<String> selectedDietaryRestrictions = [];
+      for (int i = 0; i < _selectedRestrictions.length; i++) {
+        if (_selectedRestrictions[i]) {
+          selectedDietaryRestrictions.add(_dietaryRestrictions[i]);
+        }
+      }
+
+      // Only update the dietary restrictions field
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .set({
+            'dietaryRestrictions': selectedDietaryRestrictions,
+          }, SetOptions(merge: true));
+
+      showCupertinoDialog(
+        context: context,
+        builder: (context) {
+          return CupertinoAlertDialog(
+            title: const Text('Success'),
+            content: const Text('Dietary restrictions updated successfully'),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      _showErrorDialog('Error saving dietary restrictions: $e');
+    }
+  }
+
+  void _handleLogout() {
+    showCupertinoDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Error'),
-          content: Text(message),
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: const Text('Logout'),
+          content: const Text('Are you sure you want to logout?'),
           actions: [
-            TextButton(
+            CupertinoDialogAction(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('OK'),
+              child: const Text('Cancel'),
+              isDefaultAction: true,
+            ),
+            CupertinoDialogAction(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+              },
+              child: const Text('Logout'),
+              isDestructiveAction: true,
             ),
           ],
         );
@@ -121,65 +190,150 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Account Settings'),
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0xFFFAF8F5),
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Account Settings'),
+        backgroundColor: Color(0xFFFAF8F5),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text(
-              '@${_username}', // Add @ when displaying
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            SizedBox(height: 10),
-            TextField(
-              controller: _firstNameController,
-              decoration: InputDecoration(labelText: 'First Name'),
-            ),
-            TextField(
-              controller: _lastNameController,
-              decoration: InputDecoration(labelText: 'Last Name'),
-            ),
-            TextField(
-              controller: _dobController,
-              decoration: InputDecoration(labelText: 'Date of Birth (DD/MM/YYYY)'),
-            ),
-            TextField(
-              controller: _bioController,
-              decoration: InputDecoration(labelText: 'Bio'),
-            ),
-            SizedBox(height: 20),
-            Text('Dietary Restrictions:'),
-            ...List.generate(_dietaryRestrictions.length, (index) {
-              return CheckboxListTile(
-                value: _selectedRestrictions[index],
-                onChanged: (bool? value) {
-                  setState(() {
-                    _selectedRestrictions[index] = value!;
-                  });
-                },
-                title: Text(_dietaryRestrictions[index]),
-                controlAffinity: ListTileControlAffinity.leading,
-                activeColor: Colors.grey, // Fill the checkbox with grey when selected
-                checkColor: Colors.white, // Set checkmark color to white
-                tileColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Text(
+                '@$_username',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: CupertinoColors.systemGrey,
                 ),
-              );
-            }),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _saveUserProfile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey[800], // Set a darker button background color
-                foregroundColor: Colors.white, // Set the text color to white for contrast
               ),
-              child: Text('Save Profile'),
-            )
-          ],
+              const SizedBox(height: 10),
+              CupertinoTextField(
+                controller: _firstNameController,
+                placeholder: 'First Name',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: CupertinoColors.systemGrey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: _lastNameController,
+                placeholder: 'Last Name',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: CupertinoColors.systemGrey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: _dobController,
+                placeholder: 'Date of Birth (DD/MM/YYYY)',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: CupertinoColors.systemGrey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: _bioController,
+                placeholder: 'Bio',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: CupertinoColors.systemGrey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Dietary Restrictions:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF25242A),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...List.generate(_dietaryRestrictions.length, (index) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: CupertinoColors.systemGrey.withOpacity(0.3)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () {
+                      setState(() {
+                        _selectedRestrictions[index] = !_selectedRestrictions[index];
+                      });
+                    },
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 12),
+                        Icon(
+                          _selectedRestrictions[index]
+                              ? CupertinoIcons.checkmark_circle_fill
+                              : CupertinoIcons.circle,
+                          color: _selectedRestrictions[index]
+                              ? CupertinoColors.activeBlue
+                              : CupertinoColors.systemGrey,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          _dietaryRestrictions[index],
+                          style: TextStyle(
+                            color: _selectedRestrictions[index]
+                                ? CupertinoColors.activeBlue
+                                : CupertinoColors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 16),
+              CupertinoButton(
+                color: CupertinoColors.activeBlue,
+                child: const Text('Save Dietary Restrictions'),
+                onPressed: _saveDietaryRestrictions,
+              ),
+              const SizedBox(height: 20),
+              CupertinoButton.filled(
+                onPressed: _saveUserProfile,
+                child: const Text('Save Profile'),
+              ),
+              const SizedBox(height: 40),
+              CupertinoButton(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                onPressed: _handleLogout,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: CupertinoColors.destructiveRed),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Logout',
+                      style: TextStyle(
+                        color: CupertinoColors.destructiveRed,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );

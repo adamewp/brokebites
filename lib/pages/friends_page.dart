@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertest/pages/searchFriends_page.dart';
@@ -56,9 +56,9 @@ class _FriendsPageState extends State<FriendsPage> {
       }
     } catch (e) {
       print("Error loading following list: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to load following list.")),
-      );
+      if (mounted) {
+        _showErrorMessage("Failed to load following list.");
+      }
     }
   }
 
@@ -111,22 +111,17 @@ class _FriendsPageState extends State<FriendsPage> {
         }
 
         if (mounted) {
-          // Sort posts by timestamp in descending order
           allPosts.sort((a, b) => DateTime.parse(b['timestamp']).compareTo(DateTime.parse(a['timestamp'])));
-
           setState(() {
             _mealPosts = allPosts;
           });
-          
           await prefs.setString(_postsDataCacheKey, jsonEncode(allPosts));
         }
       }
     } catch (e) {
       print("Error loading friends' meal posts: $e");
       if (mounted && _mealPosts.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to load meal posts. Please try again.")),
-        );
+        _showErrorMessage("Failed to load meal posts. Please try again.");
       }
     }
   }
@@ -164,214 +159,259 @@ class _FriendsPageState extends State<FriendsPage> {
       });
     } catch (e) {
       print("Error liking/unliking post: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to like/unlike post. Please try again.")),
-      );
+      _showErrorMessage("Failed to like/unlike post. Please try again.");
     }
+  }
+
+  void _showErrorMessage(String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Feed'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SearchFriendsPage()),
-              );
-            },
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0xFFFAF8F5),
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: const Color(0xFFFAF8F5),
+        middle: const Text('Feed'),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(
+            CupertinoIcons.search,
+            color: Color(0xFF25242A),
+          ),
+          onPressed: () {
+            Navigator.push(
+              context,
+              CupertinoPageRoute(builder: (context) => const SearchFriendsPage()),
+            );
+          },
+        ),
+      ),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          CupertinoSliverRefreshControl(
+            onRefresh: _loadFollowingAndPosts,
+          ),
+          SliverToBoxAdapter(
+            child: _mealPosts.isEmpty
+                ? Container(
+                    padding: const EdgeInsets.only(top: 100),
+                    child: const Center(
+                      child: Text(
+                        'No meal posts from friends yet.',
+                        style: TextStyle(
+                          color: CupertinoColors.systemGrey,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: _mealPosts.map((post) {
+                        final timestamp = DateTime.parse(post['timestamp'] as String);
+                        return _buildPostCard(post, timestamp);
+                      }).toList(),
+                    ),
+                  ),
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadFollowingAndPosts,
-        child: _mealPosts.isEmpty
-            ? ListView(  // Wrap with ListView to make RefreshIndicator work when empty
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: const [
-                  Center(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 100),
-                      child: Text('No meal posts from friends yet.'),
-                    ),
-                  ),
-                ],
-              )
-            : ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: _mealPosts.length,
-                itemBuilder: (context, index) {
-                  final post = _mealPosts[index];
-                  final timestamp = DateTime.parse(post['timestamp'] as String);
+    );
+  }
 
-                  return Card(
-                    margin: const EdgeInsets.all(8.0),
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          '/inspectPost',
-                          arguments: post['id'],
-                        );
-                      },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildPostCard(Map<String, dynamic> post, DateTime timestamp) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: CupertinoColors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: CupertinoColors.systemGrey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(post['userId'])
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const CupertinoActivityIndicator();
+                      }
+                      if (snapshot.hasData && snapshot.data!.exists) {
+                        var userData = snapshot.data!.data() as Map<String, dynamic>;
+                        return GestureDetector(
+                          onTap: () => Navigator.pushNamed(
+                            context,
+                            '/otherProfile',
+                            arguments: post['userId'],
+                          ),
+                          child: Row(
                             children: [
-                              Expanded(
-                                child: FutureBuilder<DocumentSnapshot>(
-                                  future: FirebaseFirestore.instance
-                                      .collection('users')
-                                      .doc(post['userId'])
-                                      .get(),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState == ConnectionState.waiting) {
-                                      return const Padding(
-                                        padding: EdgeInsets.all(8.0),
-                                        child: Text('Loading...'),
-                                      );
-                                    }
-                                    if (snapshot.hasError) {
-                                      return const Padding(
-                                        padding: EdgeInsets.all(8.0),
-                                        child: Text('Error loading username'),
-                                      );
-                                    }
-                                    if (snapshot.hasData && snapshot.data!.exists) {
-                                      var userData = snapshot.data!.data() as Map<String, dynamic>;
-                                      return Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: Row(
-                                          children: [
-                                            GestureDetector(
-                                              onTap: () {
-                                                Navigator.pushNamed(
-                                                  context,
-                                                  '/otherProfile',
-                                                  arguments: post['userId'],
-                                                );
-                                              },
-                                              child: CircleAvatar(
-                                                radius: 20,
-                                                backgroundColor: Colors.grey[300],
-                                                backgroundImage: userData['profileImageUrl'] != null && 
-                                                               userData['profileImageUrl'].toString().isNotEmpty
-                                                        ? NetworkImage(userData['profileImageUrl'])
-                                                        : null,
-                                                child: userData['profileImageUrl'] == null || 
-                                                       userData['profileImageUrl'].toString().isEmpty
-                                                        ? Text(
-                                                            (userData['username'] ?? 'U')[0].toUpperCase(),
-                                                            style: const TextStyle(color: Colors.black54),
-                                                          )
-                                                        : null,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: GestureDetector(
-                                                onTap: () {
-                                                  Navigator.pushNamed(
-                                                    context,
-                                                    '/otherProfile',
-                                                    arguments: post['userId'],
-                                                  );
-                                                },
-                                                child: Text(
-                                                  userData['username'] ?? 'Unknown User',
-                                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }
-                                    return const Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('Unknown User'),
-                                    );
-                                  },
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  image: userData['profileImageUrl'] != null
+                                      ? DecorationImage(
+                                          image: NetworkImage(userData['profileImageUrl']),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
                                 ),
+                                child: userData['profileImageUrl'] == null
+                                    ? const Icon(CupertinoIcons.person_fill)
+                                    : null,
                               ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
+                              const SizedBox(width: 8),
+                              Expanded(
                                 child: Text(
-                                  _formatTimestamp(timestamp),
+                                  userData['username'] ?? 'Unknown User',
                                   style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF25242A),
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Text(
-                              post['mealTitle'],
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
+                        );
+                      }
+                      return const Text('Unknown User');
+                    },
+                  ),
+                ),
+                Text(
+                  _formatTimestamp(timestamp),
+                  style: const TextStyle(
+                    color: CupertinoColors.systemGrey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (post['imageUrls'] != null && (post['imageUrls'] as List).isNotEmpty)
+            SizedBox(
+              height: 300,
+              child: PageView.builder(
+                itemCount: (post['imageUrls'] as List).length,
+                itemBuilder: (context, imageIndex) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      post['imageUrls'][imageIndex],
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(
+                          child: CupertinoActivityIndicator(),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Icon(
+                            CupertinoIcons.exclamationmark_triangle,
+                            color: CupertinoColors.systemGrey,
                           ),
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Text(post['mealDescription']),
-                          ),
-                          if (post['imageUrls'] != null && (post['imageUrls'] as List).isNotEmpty)
-                            Container(
-                              height: 300,
-                              child: PageView.builder(
-                                itemCount: (post['imageUrls'] as List).length,
-                                itemBuilder: (context, imageIndex) {
-                                  return Image.network(
-                                    post['imageUrls'][imageIndex],
-                                    fit: BoxFit.cover,
-                                  );
-                                },
-                              ),
-                            ),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  post['likes'].contains(_auth.currentUser!.uid)
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                  color: post['likes'].contains(_auth.currentUser!.uid)
-                                      ? Colors.red
-                                      : Colors.grey,
-                                ),
-                                onPressed: () => _likePost(post['id']),
-                              ),
-                              Text('${post['likes'].length}'),
-                              IconButton(
-                                icon: const Icon(Icons.comment),
-                                onPressed: () {
-                                  // Navigate to the CommentsPage, passing the postId
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => CommentsPage(postId: post['id']),
-                                    ),
-                                  );
-                                },
-                              ),
-                              Text('${post['comments'].length}'),
-                            ],
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   );
                 },
               ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  post['mealTitle'],
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF25242A),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  post['mealDescription'],
+                  style: const TextStyle(
+                    color: CupertinoColors.systemGrey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      child: Icon(
+                        post['likes'].contains(_auth.currentUser!.uid)
+                            ? CupertinoIcons.heart_fill
+                            : CupertinoIcons.heart,
+                        color: post['likes'].contains(_auth.currentUser!.uid)
+                            ? CupertinoColors.systemRed
+                            : CupertinoColors.systemGrey,
+                      ),
+                      onPressed: () => _likePost(post['id']),
+                    ),
+                    Text('${post['likes'].length}'),
+                    const SizedBox(width: 16),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      child: const Icon(
+                        CupertinoIcons.chat_bubble,
+                        color: CupertinoColors.systemGrey,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            builder: (context) => CommentsPage(postId: post['id']),
+                          ),
+                        );
+                      },
+                    ),
+                    Text('${post['comments'].length}'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

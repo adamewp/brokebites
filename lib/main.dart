@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:fluttertest/pages/startup_page.dart';
 import 'package:fluttertest/pages/signup_page.dart';
 import 'package:fluttertest/pages/login_page.dart';
@@ -20,6 +20,7 @@ import 'package:fluttertest/pages/otherProfile_page.dart';
 import 'package:fluttertest/pages/inspectPost_page.dart';
 import 'package:fluttertest/pages/followers_list.dart';
 import 'package:fluttertest/pages/following_list.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,47 +35,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return CupertinoApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
+      theme: CupertinoThemeData(
         brightness: Brightness.light,
         primaryColor: const Color(0xFFFAF8F5),
         scaffoldBackgroundColor: const Color(0xFFFAF8F5),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFFAF8F5),
-          foregroundColor: Color(0xFF25242A),
-          elevation: 0,
-        ),
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: Color(0xFF25242A)),
-          bodyMedium: TextStyle(color: Color(0xFF25242A)),
-          bodySmall: TextStyle(color: Color(0xFF25242A)),
-          titleLarge: TextStyle(color: Color(0xFF25242A)),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFF25242A),
-            foregroundColor: Color(0xFFFAF8F5),
-            elevation: 2,
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+        barBackgroundColor: const Color(0xFFFAF8F5),
+        textTheme: CupertinoTextThemeData(
+          primaryColor: const Color(0xFF25242A),
+          textStyle: const TextStyle(
+            color: Color(0xFF25242A),
+            fontFamily: '.SF Pro Text',
           ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: Color(0xFF25242A),
-          ),
-        ),
-        iconTheme: IconThemeData(
-          color: Color(0xFF25242A),
-        ),
-        colorScheme: ColorScheme.light(
-          primary: const Color(0xFF25242A),
-          secondary: const Color(0xFFFAF8F5),
-          onPrimary: const Color(0xFFFAF8F5),
-          onSecondary: const Color(0xFF25242A),
         ),
       ),
       home: StreamBuilder<User?>(
@@ -91,13 +64,13 @@ class MyApp extends StatelessWidget {
                   if (snapshot.connectionState == ConnectionState.done) {
                     return MainPage();
                   } else {
-                    return const Center(child: CircularProgressIndicator());
+                    return const CupertinoActivityIndicator();
                   }
                 },
               );
             }
           }
-          return const Center(child: CircularProgressIndicator());
+          return const CupertinoActivityIndicator();
         },
       ),
       routes: {
@@ -111,7 +84,7 @@ class MyApp extends StatelessWidget {
           onNext: (ingredients, portions) {
             Navigator.push(
               context,
-              MaterialPageRoute(
+              CupertinoPageRoute(
                 builder: (context) => PostDetailsPage(
                   ingredients: ingredients,
                   portions: portions,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,7 +9,11 @@ class PostDetailsPage extends StatefulWidget {
   final List<Map<String, dynamic>> ingredients;
   final int portions;
 
-  PostDetailsPage({required this.ingredients, required this.portions});
+  const PostDetailsPage({
+    super.key,
+    required this.ingredients,
+    required this.portions,
+  });
 
   @override
   _PostDetailsPageState createState() => _PostDetailsPageState();
@@ -22,11 +26,27 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   List<File> _selectedImages = [];
   bool _isLoading = false;
 
+  void _showErrorMessage(String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _pickImage() async {
     if (_selectedImages.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Maximum 5 images allowed')),
-      );
+      _showErrorMessage('Maximum 5 images allowed');
       return;
     }
 
@@ -50,9 +70,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
 
   Future<void> _submitPost() async {
     if (_titleController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter a title')),
-      );
+      _showErrorMessage('Please enter a title');
       return;
     }
 
@@ -64,7 +82,6 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('User not logged in');
 
-      // Upload images to Firebase Storage
       List<String> imageUrls = [];
       for (File image in _selectedImages) {
         String fileName = 'posts/${DateTime.now().millisecondsSinceEpoch}_${imageUrls.length}.jpg';
@@ -74,7 +91,6 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
         imageUrls.add(downloadUrl);
       }
 
-      // Create post document in Firestore
       await FirebaseFirestore.instance.collection('mealPosts').add({
         'userId': user.uid,
         'mealTitle': _titleController.text,
@@ -87,13 +103,10 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
         'comments': [],
       });
 
-      // Navigate back to main page after successful post
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       print('Error submitting post: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit post. Please try again.')),
-      );
+      _showErrorMessage('Failed to submit post. Please try again.');
     } finally {
       setState(() {
         _isLoading = false;
@@ -103,42 +116,47 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Post Details'),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('Post Details'),
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(CupertinoIcons.back),
+          onPressed: () => Navigator.pop(context),
         ),
-        body: Stack(
+      ),
+      child: SafeArea(
+        child: Stack(
           children: [
             SingleChildScrollView(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextField(
+                  CupertinoTextField(
                     controller: _titleController,
-                    decoration: InputDecoration(
-                      labelText: 'Title',
-                      border: OutlineInputBorder(),
+                    placeholder: 'Title',
+                    decoration: BoxDecoration(
+                      border: Border.all(color: CupertinoColors.systemGrey),
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    padding: const EdgeInsets.all(12),
                   ),
-                  SizedBox(height: 16),
-                  TextField(
+                  const SizedBox(height: 16),
+                  CupertinoTextField(
                     controller: _descriptionController,
-                    decoration: InputDecoration(
-                      labelText: 'Description',
-                      border: OutlineInputBorder(),
+                    placeholder: 'Description',
+                    decoration: BoxDecoration(
+                      border: Border.all(color: CupertinoColors.systemGrey),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    maxLines: 3,
+                    padding: const EdgeInsets.all(12),
+                    minLines: 3,
+                    maxLines: 5,
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   if (_selectedImages.isNotEmpty)
-                    Container(
+                    SizedBox(
                       height: 120,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
@@ -147,7 +165,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                           return Stack(
                             children: [
                               Padding(
-                                padding: EdgeInsets.only(right: 8),
+                                padding: const EdgeInsets.only(right: 8),
                                 child: Image.file(
                                   _selectedImages[index],
                                   height: 120,
@@ -158,9 +176,13 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                               Positioned(
                                 right: 8,
                                 top: 0,
-                                child: IconButton(
-                                  icon: Icon(Icons.close, color: Colors.red),
+                                child: CupertinoButton(
+                                  padding: EdgeInsets.zero,
                                   onPressed: () => _removeImage(index),
+                                  child: const Icon(
+                                    CupertinoIcons.clear_circled_solid,
+                                    color: CupertinoColors.destructiveRed,
+                                  ),
                                 ),
                               ),
                             ],
@@ -168,25 +190,24 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                         },
                       ),
                     ),
-                  SizedBox(height: 16),
-                  ElevatedButton.icon(
+                  const SizedBox(height: 16),
+                  CupertinoButton.filled(
                     onPressed: _pickImage,
-                    icon: Icon(Icons.add_photo_alternate),
-                    label: Text('Add Images (${_selectedImages.length}/5)'),
+                    child: Text('Add Images (${_selectedImages.length}/5)'),
                   ),
-                  SizedBox(height: 16),
-                  ElevatedButton(
+                  const SizedBox(height: 16),
+                  CupertinoButton.filled(
                     onPressed: _isLoading ? null : _submitPost,
-                    child: Text('Post'),
+                    child: const Text('Post'),
                   ),
                 ],
               ),
             ),
             if (_isLoading)
               Container(
-                color: Colors.black54,
-                child: Center(
-                  child: CircularProgressIndicator(),
+                color: CupertinoColors.systemBackground.withOpacity(0.7),
+                child: const Center(
+                  child: CupertinoActivityIndicator(),
                 ),
               ),
           ],

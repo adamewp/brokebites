@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'ingredientsInput_page.dart';
 import 'postDetails_page.dart';
 
@@ -9,7 +9,7 @@ class NewPostFlow extends StatelessWidget {
       onNext: (ingredients, portions) {
         Navigator.push(
           context,
-          MaterialPageRoute(
+          CupertinoPageRoute(
             builder: (context) => PostDetailsPage(
               ingredients: ingredients,
               portions: portions,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -71,16 +71,14 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   void _showErrorDialog(String message) {
-    showDialog(
+    showCupertinoDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: const Text('Error'),
         content: Text(message),
         actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-            },
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Okay'),
           ),
         ],
@@ -90,84 +88,110 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sign Up'),
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0xFFF4EFDA),
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Sign Up'),
         backgroundColor: Color(0xFFF4EFDA),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(
-                labelText: 'Username',
-                hintText: 'Enter username without @',
-              ),
-            ),
-            TextField(
-              controller: _firstNameController,
-              decoration: const InputDecoration(labelText: 'First Name'),
-            ),
-            TextField(
-              controller: _lastNameController,
-              decoration: const InputDecoration(labelText: 'Last Name'),
-            ),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            TextField(
-              controller: _passwordController,
-              decoration: InputDecoration(
-                labelText: 'Password',
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              CupertinoTextField(
+                controller: _usernameController,
+                placeholder: 'Enter username without @',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: CupertinoColors.systemGrey),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              obscureText: _obscurePassword,
-            ),
-            TextField(
-              controller: _confirmPasswordController,
-              decoration: InputDecoration(
-                labelText: 'Confirm Password',
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscureConfirmPassword = !_obscureConfirmPassword;
-                    });
-                  },
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: _firstNameController,
+                placeholder: 'First Name',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: CupertinoColors.systemGrey),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              obscureText: _obscureConfirmPassword,
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Password must include:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const Text('• At least 6 characters'),
-            const Text('• At least one uppercase letter'),
-            const Text('• At least one lowercase letter'),
-            const Text('• At least one numeric character'),
-            const Text('• At least one special character'),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _signUp,
-              child: const Text('Sign Up'),
-            ),
-          ],
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: _lastNameController,
+                placeholder: 'Last Name',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: CupertinoColors.systemGrey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: _emailController,
+                placeholder: 'Email',
+                keyboardType: TextInputType.emailAddress,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: CupertinoColors.systemGrey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: _passwordController,
+                placeholder: 'Password',
+                obscureText: _obscurePassword,
+                suffix: CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  child: Icon(
+                    _obscurePassword ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                  ),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: CupertinoColors.systemGrey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: _confirmPasswordController,
+                placeholder: 'Confirm Password',
+                obscureText: _obscureConfirmPassword,
+                suffix: CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  child: Icon(
+                    _obscureConfirmPassword ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                  ),
+                  onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                ),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: CupertinoColors.systemGrey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Password must include:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const Text('• At least 6 characters'),
+              const Text('• At least one uppercase letter'),
+              const Text('• At least one lowercase letter'),
+              const Text('• At least one numeric character'),
+              const Text('• At least one special character'),
+              const SizedBox(height: 20),
+              CupertinoButton.filled(
+                onPressed: _signUp,
+                child: const Text('Sign Up'),
+              ),
+            ],
+          ),
         ),
       ),
     );

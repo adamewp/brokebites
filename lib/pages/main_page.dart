@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:fluttertest/pages/startup_page.dart';
 import 'package:fluttertest/pages/signup_page.dart';
 import 'package:fluttertest/pages/login_page.dart';
@@ -35,27 +35,36 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex == 0 ? 0 : 2,
-        onTap: _navigateBottomBar,
-        selectedItemColor: const Color(0xFF25242A),
-        unselectedItemColor: const Color(0xFFB0B0B0),
-        backgroundColor: const Color(0xFFFAF8F5),
-        elevation: 5.0,
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.feed),
-            label: 'Feed',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle),
-            label: 'New Post',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0xFFFAF8F5),
+      child: Stack(
+        children: [
+          _pages[_selectedIndex],
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: CupertinoTabBar(
+              currentIndex: _selectedIndex == 0 ? 0 : 2,
+              onTap: _navigateBottomBar,
+              activeColor: const Color(0xFF25242A),
+              inactiveColor: const Color(0xFFB0B0B0),
+              backgroundColor: const Color(0xFFFAF8F5),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.list_bullet),
+                  label: 'Feed',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.add_circled),
+                  label: 'New Post',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.person),
+                  label: 'Profile',
+                ),
+              ],
+            ),
           ),
         ],
       ),

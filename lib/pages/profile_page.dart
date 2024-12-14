@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -153,36 +153,41 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } catch (e) {
       print('Error uploading image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update profile picture'))
-      );
+      _showErrorMessage('Failed to update profile picture');
     }
   }
 
   void _showListDialog(String listType, List<String> usernames) {
-    showDialog(
+    showCupertinoDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text('$listType'),
-          content: SizedBox(
+        return CupertinoAlertDialog(
+          title: Text(listType),
+          content: Container(
+            height: 200,
             width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: usernames.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(usernames[index]),
-                );
-              },
+            child: CupertinoScrollbar(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: usernames.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Text(
+                      usernames[index],
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
           actions: [
-            TextButton(
+            CupertinoDialogAction(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('Close'),
+              child: const Text('Close'),
             ),
           ],
         );
@@ -218,14 +223,10 @@ class _ProfilePageState extends State<ProfilePage> {
         _posts.removeWhere((post) => post['postId'] == postId);
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Post deleted')),
-      );
+      _showErrorMessage('Post deleted successfully');
     } catch (e) {
       print('Error deleting post: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete post')),
-      );
+      _showErrorMessage('Failed to delete post');
     }
   }
 
@@ -274,16 +275,27 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildPostItem(Map<String, dynamic> post) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(
-            context,
-            '/inspectPost',
-            arguments: post['postId'],
-          );
-        },
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          '/inspectPost',
+          arguments: post['postId'],
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8.0),
+        decoration: BoxDecoration(
+          color: CupertinoColors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: CupertinoColors.systemGrey.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -302,19 +314,63 @@ class _ProfilePageState extends State<ProfilePage> {
                   },
                 ),
               ),
-            ListTile(
-              title: Text(post['mealTitle']),
-              subtitle: Text(post['mealDescription']),
-              trailing: PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'delete') {
-                    _deletePost(post['postId']);
-                  }
-                },
-                itemBuilder: (BuildContext context) => [
-                  const PopupMenuItem<String>(
-                    value: 'delete',
-                    child: Text('Delete'),
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          post['mealTitle'],
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF25242A),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          post['mealDescription'],
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: CupertinoColors.systemGrey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    child: const Icon(
+                      CupertinoIcons.ellipsis,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                    onPressed: () {
+                      showCupertinoModalPopup(
+                        context: context,
+                        builder: (BuildContext context) => CupertinoActionSheet(
+                          actions: [
+                            CupertinoActionSheetAction(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _deletePost(post['postId']);
+                              },
+                              isDestructiveAction: true,
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                          cancelButton: CupertinoActionSheetAction(
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -325,144 +381,244 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  void _showErrorMessage(String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('@$_username'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0xFFFAF8F5),
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: const Color(0xFFFAF8F5),
+        middle: Text(_username),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(
+            CupertinoIcons.settings,
+            color: Color(0xFF25242A),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _navigateToSettings(),
-          ),
-        ],
+          onPressed: () => Navigator.pushNamed(context, '/accountSettings'),
+        ),
       ),
-      body: RefreshIndicator(
-        onRefresh: _refreshProfile,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                // Profile Image
-                Center(
-                  child: GestureDetector(
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          CupertinoSliverRefreshControl(
+            onRefresh: _refreshProfile,
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  GestureDetector(
                     onTap: _updateProfileImage,
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.grey[300],
-                      backgroundImage: _profileImageUrl != null
-                          ? NetworkImage(_profileImageUrl!)
-                          : null,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: CupertinoColors.systemGrey5,
+                        image: _profileImageUrl != null
+                            ? DecorationImage(
+                                image: NetworkImage(_profileImageUrl!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
                       child: _profileImageUrl == null
-                          ? Icon(Icons.person, size: 50, color: Colors.grey)
+                          ? const Icon(
+                              CupertinoIcons.person_fill,
+                              size: 50,
+                              color: CupertinoColors.systemGrey,
+                            )
                           : null,
                     ),
                   ),
-                ),
-                SizedBox(height: 20),
-                
-                // Name and Username
-                Text(
-                  _name,
-                  style: TextStyle(fontSize: 24),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  '@$_username',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                SizedBox(height: 10),
-                
-                // Bio
-                Text(
-                  _bio,
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 20),
-                
-                // Following/Followers
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        '/following',
-                        arguments: {
-                          'userId': _auth.currentUser!.uid,
-                          'isCurrentUser': true,
-                        },
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Following',
-                            style: TextStyle(fontSize: 16, color: Colors.black),
-                          ),
-                          Text(
-                            '${_following.length}',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
-                        ],
-                      ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _name,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF25242A),
                     ),
-                    GestureDetector(
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        '/followers',
-                        arguments: {
-                          'userId': _auth.currentUser!.uid,
-                          'isCurrentUser': true,
-                        },
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Followers',
-                            style: TextStyle(fontSize: 16, color: Colors.black),
-                          ),
-                          Text(
-                            '${_followers.length}',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
-                        ],
-                      ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _bio,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: CupertinoColors.systemGrey,
                     ),
-                  ],
-                ),
-                SizedBox(height: 20),
-                
-                // Posts Section
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Posts (${_posts.length})',
-                      style: TextStyle(fontSize: 16, color: Colors.black),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 10),
-                
-                // Posts List
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  itemCount: _posts.length,
-                  itemBuilder: (context, index) {
-                    return _buildPostItem(_posts[index]);
-                  },
-                ),
-              ],
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          '/following',
+                          arguments: {
+                            'userId': _auth.currentUser!.uid,
+                            'isCurrentUser': true,
+                          },
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Following',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF25242A),
+                              ),
+                            ),
+                            Text(
+                              '${_following.length}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: CupertinoColors.systemGrey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          '/followers',
+                          arguments: {
+                            'userId': _auth.currentUser!.uid,
+                            'isCurrentUser': true,
+                          },
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Followers',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF25242A),
+                              ),
+                            ),
+                            Text(
+                              '${_followers.length}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: CupertinoColors.systemGrey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Posts (${_posts.length})',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF25242A),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _posts.length,
+                    itemBuilder: (context, index) {
+                      return _buildPostItem(_posts[index]);
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostCard(Map<String, dynamic> post) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: () {
+        Navigator.pushNamed(context, '/inspectPost', arguments: post['postId']);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: CupertinoColors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: CupertinoColors.systemGrey.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: Image.network(
+                post['imageUrls'][0],
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: 200,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    post['mealTitle'],
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF25242A),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    post['mealDescription'],
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

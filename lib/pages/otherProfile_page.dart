@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -31,6 +31,24 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
     _loadUserPosts();
     _loadFollowingAndFollowers();
     _checkIfFollowing();
+  }
+
+  void _showErrorMessage(String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _checkIfFollowing() async {
@@ -87,13 +105,11 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
       _loadFollowingAndFollowers();
     } catch (e) {
       print('Error toggling follow: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update follow status')),
-      );
+      _showErrorMessage('Failed to update follow status');
     }
   }
 
-  Future _loadUserProfile() async {
+  Future<void> _loadUserProfile() async {
     try {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -113,10 +129,11 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
       });
     } catch (e) {
       print('Error loading user profile: $e');
+      _showErrorMessage('Error loading user profile');
     }
   }
 
-  Future _loadUserPosts() async {
+  Future<void> _loadUserPosts() async {
     try {
       QuerySnapshot postDocs = await FirebaseFirestore.instance
           .collection('mealPosts')
@@ -128,19 +145,21 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
         _posts = postDocs.docs.map((doc) {
           Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
           return {
+            'postId': doc.id,
             'mealTitle': data['mealTitle'] ?? 'Untitled Meal',
             'mealDescription': data['mealDescription'] ?? 'No description',
-            'imageUrl': data['imageUrl'],
-            'postId': doc.id,
+            'imageUrls': data['imageUrls'] ?? [],
+            'timestamp': data['timestamp'],
           };
         }).toList();
       });
     } catch (e) {
       print('Error loading user posts: $e');
+      _showErrorMessage('Failed to load posts');
     }
   }
 
-  Future _loadFollowingAndFollowers() async {
+  Future<void> _loadFollowingAndFollowers() async {
     try {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -163,6 +182,7 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
       await _loadUsernamesForList(_followers, _followerUsernames);
     } catch (e) {
       print('Error loading following and followers: $e');
+      _showErrorMessage('Error loading following and followers');
     }
   }
 
@@ -184,191 +204,251 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
     }
   }
 
-  void _showListDialog(String listType, List<String> usernames, List<String> userIds) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(listType),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: usernames.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(
-                        context,
-                        '/otherProfile',
-                        arguments: userIds[index],
-                      );
-                    },
-                    child: Text(usernames[index]),
-                  ),
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_username),
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0xFFFAF8F5),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(_username),
+        backgroundColor: const Color(0xFFFAF8F5),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Center(
-              child: CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.grey[300],
-                backgroundImage: _profileImageUrl != null 
-                  ? NetworkImage(_profileImageUrl!)
-                  : null,
-                child: _profileImageUrl == null
-                    ? Icon(Icons.person, size: 50, color: Colors.grey)
-                    : null,
-              ),
-            ),
-            SizedBox(height: 20),
-            Text(
-              _name,
-              style: TextStyle(fontSize: 24),
-            ),
-            SizedBox(height: 5),
-            Text(
-              '$_username',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            SizedBox(height: 10),
-            Text(
-              _bio,
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _toggleFollow,
-              child: Text(_isFollowing ? 'Unfollow' : 'Follow'),
-            ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
               children: [
-                GestureDetector(
-                  onTap: () => Navigator.pushNamed(
-                    context,
-                    '/following',
-                    arguments: {
-                      'userId': widget.userId,
-                      'isCurrentUser': false,
-                    },
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Following',
-                        style: TextStyle(fontSize: 16, color: Colors.black),
-                      ),
-                      Text(
-                        '${_following.length}',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
+                Center(
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: CupertinoColors.systemGrey.withOpacity(0.3),
+                      image: _profileImageUrl != null
+                          ? DecorationImage(
+                              image: NetworkImage(_profileImageUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: _profileImageUrl == null
+                        ? const Icon(
+                            CupertinoIcons.person_fill,
+                            size: 50,
+                            color: CupertinoColors.systemGrey,
+                          )
+                        : null,
                   ),
                 ),
-                GestureDetector(
-                  onTap: () => Navigator.pushNamed(
-                    context,
-                    '/followers',
-                    arguments: {
-                      'userId': widget.userId,
-                      'isCurrentUser': false,
-                    },
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Followers',
-                        style: TextStyle(fontSize: 16, color: Colors.black),
-                      ),
-                      Text(
-                        '${_followers.length}',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
+                const SizedBox(height: 20),
                 Text(
-                  'Posts (${_posts.length})',
-                  style: TextStyle(fontSize: 16, color: Colors.black),
+                  _name,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    color: Color(0xFF25242A),
+                  ),
                 ),
-              ],
-            ),
-            SizedBox(height: 10),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _posts.length,
-                itemBuilder: (context, index) {
-                  return Card(
-                    margin: EdgeInsets.symmetric(vertical: 5),
-                    child: InkWell(
-                      onTap: () {
+                const SizedBox(height: 5),
+                Text(
+                  _username,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: CupertinoColors.systemGrey,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _bio,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: CupertinoColors.systemGrey.darkColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                CupertinoButton(
+                  onPressed: _toggleFollow,
+                  padding: EdgeInsets.zero,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _isFollowing
+                          ? CupertinoColors.systemGrey6
+                          : CupertinoColors.activeBlue,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _isFollowing ? 'Following' : 'Follow',
+                      style: TextStyle(
+                        color: _isFollowing
+                            ? CupertinoColors.black
+                            : CupertinoColors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        '/following',
+                        arguments: {
+                          'userId': widget.userId,
+                          'isCurrentUser': false,
+                        },
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Following',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF25242A),
+                            ),
+                          ),
+                          Text(
+                            '${_following.length}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: CupertinoColors.systemGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        '/followers',
+                        arguments: {
+                          'userId': widget.userId,
+                          'isCurrentUser': false,
+                        },
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Followers',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF25242A),
+                            ),
+                          ),
+                          Text(
+                            '${_followers.length}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: CupertinoColors.systemGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Posts (${_posts.length})',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFF25242A),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _posts.length,
+                  itemBuilder: (context, index) {
+                    return CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () {
                         Navigator.pushNamed(
                           context,
                           '/inspectPost',
                           arguments: _posts[index]['postId'],
                         );
                       },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (_posts[index]['imageUrl'] != null && _posts[index]['imageUrl'].isNotEmpty)
-                            Container(
-                              height: 200,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: NetworkImage(_posts[index]['imageUrl']),
-                                  fit: BoxFit.cover,
+                      child: Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: CupertinoColors.systemGrey.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_posts[index]['imageUrls'] != null &&
+                                (_posts[index]['imageUrls'] as List).isNotEmpty)
+                              SizedBox(
+                                width: double.infinity,
+                                height: 300,
+                                child: PageView.builder(
+                                  itemCount: (_posts[index]['imageUrls'] as List).length,
+                                  itemBuilder: (context, imageIndex) {
+                                    return Image.network(
+                                      _posts[index]['imageUrls'][imageIndex],
+                                      width: double.infinity,
+                                      height: 300,
+                                      fit: BoxFit.cover,
+                                    );
+                                  },
                                 ),
                               ),
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _posts[index]['mealTitle'],
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF25242A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _posts[index]['mealDescription'],
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: CupertinoColors.systemGrey,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ListTile(
-                            title: Text(_posts[index]['mealTitle']),
-                            subtitle: Text(_posts[index]['mealDescription']),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

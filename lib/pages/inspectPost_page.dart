@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertest/pages/comments_page.dart';
@@ -24,6 +24,24 @@ class _InspectPostPageState extends State<InspectPostPage> {
     _loadPostData();
   }
 
+  void _showErrorMessage(String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _loadPostData() async {
     try {
       DocumentSnapshot postDoc = await FirebaseFirestore.instance
@@ -32,16 +50,13 @@ class _InspectPostPageState extends State<InspectPostPage> {
           .get();
 
       if (!postDoc.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Post not found')),
-        );
+        _showErrorMessage('Post not found');
         Navigator.pop(context);
         return;
       }
 
       var postData = postDoc.data() as Map<String, dynamic>;
       
-      // Load user data
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(postData['userId'])
@@ -53,9 +68,7 @@ class _InspectPostPageState extends State<InspectPostPage> {
       });
     } catch (e) {
       print('Error loading post data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error loading post')),
-      );
+      _showErrorMessage('Error loading post');
     }
   }
 
@@ -84,9 +97,7 @@ class _InspectPostPageState extends State<InspectPostPage> {
       });
     } catch (e) {
       print('Error liking/unliking post: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update like')),
-      );
+      _showErrorMessage('Failed to update like');
     }
   }
 
@@ -113,7 +124,10 @@ class _InspectPostPageState extends State<InspectPostPage> {
         padding: EdgeInsets.all(16.0),
         child: Text(
           'No ingredients available.',
-          style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+          style: TextStyle(
+            fontStyle: FontStyle.italic,
+            color: CupertinoColors.systemGrey,
+          ),
         ),
       );
     }
@@ -125,7 +139,11 @@ class _InspectPostPageState extends State<InspectPostPage> {
         children: [
           const Text(
             'Ingredients',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF25242A),
+            ),
           ),
           const SizedBox(height: 8),
           ListView.builder(
@@ -141,12 +159,18 @@ class _InspectPostPageState extends State<InspectPostPage> {
                     Expanded(
                       child: Text(
                         ingredient['name'],
-                        style: const TextStyle(fontSize: 16),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF25242A),
+                        ),
                       ),
                     ),
                     Text(
                       '${ingredient['amount']} ${ingredient['unit']}',
-                      style: const TextStyle(fontSize: 16, color: Colors.grey),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: CupertinoColors.systemGrey,
+                      ),
                     ),
                   ],
                 ),
@@ -161,8 +185,13 @@ class _InspectPostPageState extends State<InspectPostPage> {
   @override
   Widget build(BuildContext context) {
     if (_postData == null || _userData == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return const CupertinoPageScaffold(
+        navigationBar: CupertinoNavigationBar(
+          middle: Text('Post'),
+          backgroundColor: Color(0xFFFAF8F5),
+        ),
+        backgroundColor: Color(0xFFFAF8F5),
+        child: Center(child: CupertinoActivityIndicator()),
       );
     }
 
@@ -170,152 +199,172 @@ class _InspectPostPageState extends State<InspectPostPage> {
         ? (_postData!['timestamp'] as DateTime)
         : (_postData!['timestamp'] as Timestamp).toDate();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Post'),
-        elevation: 1,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+    return CupertinoPageScaffold(
+      backgroundColor: const Color(0xFFFAF8F5),
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Post'),
+        backgroundColor: Color(0xFFFAF8F5),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User info header - more compact
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      if (_postData!['userId'] != _auth.currentUser!.uid) {
-                        Navigator.pushNamed(context, '/otherProfile', arguments: _postData!['userId']);
-                      }
-                    },
-                    child: CircleAvatar(
-                      radius: 16, // Smaller avatar
-                      backgroundImage: _userData!['profileImageUrl'] != null
-                          ? NetworkImage(_userData!['profileImageUrl'])
-                          : null,
-                      child: _userData!['profileImageUrl'] == null
-                          ? Text((_userData!['username'] ?? 'U')[0].toUpperCase(), style: const TextStyle(fontSize: 14))
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
-                      if (_postData!['userId'] != _auth.currentUser!.uid) {
-                        Navigator.pushNamed(context, '/otherProfile', arguments: _postData!['userId']);
-                      }
-                    },
-                    child: Text(
-                      _userData!['username'] ?? 'Unknown User',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    _formatTimestamp(timestamp),
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Post images - full width with loading indicator and caching
-            if (_postData!['imageUrls'] != null && (_postData!['imageUrls'] as List).isNotEmpty)
-              AspectRatio(
-                aspectRatio: 1, // Square images
-                child: PageView.builder(
-                  itemCount: (_postData!['imageUrls'] as List).length,
-                  itemBuilder: (context, index) {
-                    return CachedNetworkImage(
-                      imageUrl: _postData!['imageUrls'][index],
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                      errorWidget: (context, url, error) => const Icon(Icons.error),
-                    );
-                  },
-                ),
-              ),
-
-            // Like and comment buttons
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      (_postData!['likes'] ?? []).contains(_auth.currentUser!.uid)
-                          ? Icons.favorite
-                          : Icons.favorite_border,
-                      size: 28,
-                      color: (_postData!['likes'] ?? []).contains(_auth.currentUser!.uid)
-                          ? Colors.red
-                          : Colors.black,
-                    ),
-                    onPressed: _likePost,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.comment_outlined, size: 28),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CommentsPage(postId: widget.postId),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            // Likes count
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                '${(_postData!['likes'] ?? []).length} likes',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-
-            // Post title and description
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: RichText(
-                text: TextSpan(
-                  style: const TextStyle(color: Colors.black),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                child: Row(
                   children: [
-                    TextSpan(
-                      text: '${_userData!['username']} ',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    GestureDetector(
+                      onTap: () {
+                        if (_postData!['userId'] != _auth.currentUser!.uid) {
+                          Navigator.pushNamed(context, '/otherProfile', arguments: _postData!['userId']);
+                        }
+                      },
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          image: _userData!['profileImageUrl'] != null
+                              ? DecorationImage(
+                                  image: NetworkImage(_userData!['profileImageUrl']),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                          color: _userData!['profileImageUrl'] == null
+                              ? CupertinoColors.systemGrey
+                              : null,
+                        ),
+                        child: _userData!['profileImageUrl'] == null
+                            ? Center(
+                                child: Text(
+                                  (_userData!['username'] ?? 'U')[0].toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: CupertinoColors.white,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
-                    TextSpan(
-                      text: _postData!['mealTitle'] ?? '',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        if (_postData!['userId'] != _auth.currentUser!.uid) {
+                          Navigator.pushNamed(context, '/otherProfile',
+                              arguments: _postData!['userId']);
+                        }
+                      },
+                      child: Text(
+                        _userData!['username'] ?? 'Unknown User',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Color(0xFF25242A),
+                        ),
+                      ),
                     ),
-                    const TextSpan(text: '\n'),
-                    TextSpan(
-                      text: _postData!['mealDescription'] ?? '',
+                    const Spacer(),
+                    Text(
+                      _formatTimestamp(timestamp),
+                      style: const TextStyle(
+                        color: CupertinoColors.systemGrey,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-
-            // Add the ingredients list here
-            _buildIngredientsList(),
-          ],
+              if (_postData!['imageUrls'] != null &&
+                  (_postData!['imageUrls'] as List).isNotEmpty)
+                AspectRatio(
+                  aspectRatio: 1,
+                  child: PageView.builder(
+                    itemCount: (_postData!['imageUrls'] as List).length,
+                    itemBuilder: (context, index) {
+                      return CachedNetworkImage(
+                        imageUrl: _postData!['imageUrls'][index],
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            const Center(child: CupertinoActivityIndicator()),
+                        errorWidget: (context, url, error) =>
+                            const Icon(CupertinoIcons.exclamationmark_triangle),
+                      );
+                    },
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                child: Row(
+                  children: [
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: _likePost,
+                      child: Icon(
+                        (_postData!['likes'] ?? []).contains(_auth.currentUser!.uid)
+                            ? CupertinoIcons.heart_fill
+                            : CupertinoIcons.heart,
+                        size: 28,
+                        color: (_postData!['likes'] ?? []).contains(_auth.currentUser!.uid)
+                            ? CupertinoColors.systemRed
+                            : const Color(0xFF25242A),
+                      ),
+                    ),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      child: const Icon(
+                        CupertinoIcons.chat_bubble,
+                        size: 28,
+                        color: Color(0xFF25242A),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            builder: (context) => CommentsPage(postId: widget.postId),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  '${(_postData!['likes'] ?? []).length} likes',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF25242A),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(color: Color(0xFF25242A)),
+                    children: [
+                      TextSpan(
+                        text: '${_userData!['username']} ',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      TextSpan(
+                        text: _postData!['mealTitle'] ?? '',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const TextSpan(text: '\n'),
+                      TextSpan(
+                        text: _postData!['mealDescription'] ?? '',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              _buildIngredientsList(),
+            ],
+          ),
         ),
       ),
     );
