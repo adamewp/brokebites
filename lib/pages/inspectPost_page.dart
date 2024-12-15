@@ -214,55 +214,56 @@ class _InspectPostPageState extends State<InspectPostPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                 child: Row(
                   children: [
-                    GestureDetector(
-                      onTap: () {
-                        if (_postData!['userId'] != _auth.currentUser!.uid) {
-                          Navigator.pushNamed(context, '/otherProfile', arguments: _postData!['userId']);
-                        }
-                      },
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          image: _userData!['profileImageUrl'] != null
-                              ? DecorationImage(
-                                  image: NetworkImage(_userData!['profileImageUrl']),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
-                          color: _userData!['profileImageUrl'] == null
-                              ? CupertinoColors.systemGrey
-                              : null,
-                        ),
-                        child: _userData!['profileImageUrl'] == null
-                            ? Center(
-                                child: Text(
-                                  (_userData!['username'] ?? 'U')[0].toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: CupertinoColors.white,
-                                  ),
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () {
-                        if (_postData!['userId'] != _auth.currentUser!.uid) {
-                          Navigator.pushNamed(context, '/otherProfile',
-                              arguments: _postData!['userId']);
-                        }
-                      },
-                      child: Text(
-                        _userData!['username'] ?? 'Unknown User',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: Color(0xFF25242A),
-                        ),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: _postData!['userId'] != _auth.currentUser!.uid 
+                          ? () {
+                              Navigator.pushNamed(
+                                context, 
+                                '/otherProfile', 
+                                arguments: _postData!['userId']
+                              );
+                            }
+                          : null,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              image: _userData!['profileImageUrl'] != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(_userData!['profileImageUrl']),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                              color: _userData!['profileImageUrl'] == null
+                                  ? CupertinoColors.systemGrey
+                                  : null,
+                            ),
+                            child: _userData!['profileImageUrl'] == null
+                                ? Center(
+                                    child: Text(
+                                      (_userData!['username'] ?? 'U')[0].toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: CupertinoColors.white,
+                                      ),
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _userData!['username'] ?? 'Unknown User',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Color(0xFF25242A),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const Spacer(),
@@ -283,15 +284,31 @@ class _InspectPostPageState extends State<InspectPostPage> {
                   child: PageView.builder(
                     itemCount: (_postData!['imageUrls'] as List).length,
                     itemBuilder: (context, index) {
-                      return Hero(
-                        tag: 'post-${widget.postId}-image-$index',
-                        child: CachedNetworkImage(
-                          imageUrl: _postData!['imageUrls'][index],
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) =>
-                              const Center(child: CupertinoActivityIndicator()),
-                          errorWidget: (context, url, error) =>
-                              const Icon(CupertinoIcons.exclamationmark_triangle),
+                      return WillPopScope(
+                        onWillPop: () async {
+                          Navigator.of(context).pop();
+                          return false;
+                        },
+                        child: Hero(
+                          tag: 'post-${widget.postId}-image-$index-detail-${widget.postId}',
+                          child: CachedNetworkImage(
+                            imageUrl: _postData!['imageUrls'][index] ?? '',
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) =>
+                                const Center(child: CupertinoActivityIndicator()),
+                            errorWidget: (context, url, error) {
+                              if (url.isEmpty) {
+                                return const Center(
+                                  child: Icon(
+                                    CupertinoIcons.photo,
+                                    size: 40,
+                                    color: CupertinoColors.systemGrey,
+                                  ),
+                                );
+                              }
+                              return const Icon(CupertinoIcons.exclamationmark_triangle);
+                            },
+                          ),
                         ),
                       );
                     },
@@ -326,6 +343,7 @@ class _InspectPostPageState extends State<InspectPostPage> {
                           context,
                           CupertinoPageRoute(
                             builder: (context) => CommentsPage(postId: widget.postId),
+                            fullscreenDialog: true,
                           ),
                         );
                       },

@@ -111,45 +111,23 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         'lastName': _lastNameController.text,
         'dob': _dobController.text,
         'bio': _bioController.text,
-        'dietaryRestrictions': selectedDietaryRestrictions,  // Save as a list of strings
+        'dietaryRestrictions': selectedDietaryRestrictions,
       };
 
       await FirebaseFirestore.instance.collection('users').doc(userId).update(userData);
-      Navigator.pop(context, true);
-    } catch (e) {
-      _showErrorDialog('Error saving profile: $e');
-    }
-  }
-
-  Future<void> _saveDietaryRestrictions() async {
-    try {
-      String userId = _auth.currentUser!.uid;
       
-      // Create a list of selected dietary restrictions
-      List<String> selectedDietaryRestrictions = [];
-      for (int i = 0; i < _selectedRestrictions.length; i++) {
-        if (_selectedRestrictions[i]) {
-          selectedDietaryRestrictions.add(_dietaryRestrictions[i]);
-        }
-      }
-
-      // Only update the dietary restrictions field
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .set({
-            'dietaryRestrictions': selectedDietaryRestrictions,
-          }, SetOptions(merge: true));
-
       showCupertinoDialog(
         context: context,
         builder: (context) {
           return CupertinoAlertDialog(
             title: const Text('Success'),
-            content: const Text('Dietary restrictions updated successfully'),
+            content: const Text('Profile updated successfully'),
             actions: [
               CupertinoDialogAction(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close dialog
+                  Navigator.pop(context, true); // Return to previous screen
+                },
                 child: const Text('OK'),
               ),
             ],
@@ -157,7 +135,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         },
       );
     } catch (e) {
-      _showErrorDialog('Error saving dietary restrictions: $e');
+      _showErrorDialog('Error saving profile: $e');
     }
   }
 
@@ -297,12 +275,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   ),
                 );
               }),
-              const SizedBox(height: 16),
-              CupertinoButton(
-                color: CupertinoColors.activeBlue,
-                child: const Text('Save Dietary Restrictions'),
-                onPressed: _saveDietaryRestrictions,
-              ),
               const SizedBox(height: 20),
               CupertinoButton.filled(
                 onPressed: _saveUserProfile,

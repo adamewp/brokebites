@@ -38,7 +38,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: CupertinoThemeData(
         brightness: Brightness.light,
-        primaryColor: const Color(0xFFFAF8F5),
+        primaryColor: const Color(0xFF25242A),
         scaffoldBackgroundColor: const Color(0xFFFAF8F5),
         barBackgroundColor: const Color(0xFFFAF8F5),
         textTheme: CupertinoTextThemeData(

@@ -10,25 +10,64 @@ class LogInPage extends StatefulWidget {
 }
 
 class _LogInPageState extends State<LogInPage> {
-  final _emailController = TextEditingController();
+  final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   Future<void> _logIn() async {
+    setState(() => _isLoading = true);
+    
     try {
+      String email = _loginController.text;
+      
+      // Check if input is not an email
+      if (!email.contains('@')) {
+        // Query Firestore to get email by username
+        QuerySnapshot userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('username', isEqualTo: _loginController.text)
+            .limit(1)
+            .get();
+
+        if (userQuery.docs.isEmpty) {
+          _showErrorDialog('Username not found');
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        email = userQuery.docs.first.get('email');
+      }
+
+      // Attempt login with email
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: _emailController.text,
+        email: email,
         password: _passwordController.text,
       );
 
-      // Fetch user data after successful login
       await _fetchUserData();
-
-      // Navigate to main page after successful login
       Navigator.pushReplacementNamed(context, '/main');
     } catch (e) {
-      _showErrorDialog(e.toString());
+      String errorMessage = 'Login failed';
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'user-not-found':
+            errorMessage = 'No user found with this email/username';
+            break;
+          case 'wrong-password':
+            errorMessage = 'Wrong password';
+            break;
+          case 'invalid-email':
+            errorMessage = 'Invalid email format';
+            break;
+          default:
+            errorMessage = e.message ?? 'Login failed';
+        }
+      }
+      _showErrorDialog(errorMessage);
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -96,8 +135,8 @@ class _LogInPageState extends State<LogInPage> {
             child: Column(
               children: [
                 CupertinoTextField(
-                  controller: _emailController,
-                  placeholder: 'Email',
+                  controller: _loginController,
+                  placeholder: 'Email or Username',
                   keyboardType: TextInputType.emailAddress,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -126,8 +165,10 @@ class _LogInPageState extends State<LogInPage> {
                 ),
                 const SizedBox(height: 20),
                 CupertinoButton.filled(
-                  onPressed: _logIn,
-                  child: const Text('Log In'),
+                  onPressed: _isLoading ? null : _logIn,
+                  child: _isLoading
+                      ? const CupertinoActivityIndicator(color: CupertinoColors.white)
+                      : const Text('Log In'),
                 ),
               ],
             ),

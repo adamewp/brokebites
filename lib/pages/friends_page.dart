@@ -38,18 +38,15 @@ class _FriendsPageState extends State<FriendsPage> {
       if (!userDoc.exists) return;
 
       _following = List<String>.from(userDoc.data()?['following'] ?? []);
+      
+      // Add current user's ID to the list of IDs to query
+      List<String> userIdsToQuery = [..._following];
+      userIdsToQuery.add(_auth.currentUser!.uid);
 
-      if (_following.isEmpty) {
-        setState(() {
-          _mealPosts.clear();
-        });
-        return;
-      }
-
-      // Then load posts from following users
+      // Then load posts from following users AND current user
       final QuerySnapshot postDocs = await FirebaseFirestore.instance
           .collection('mealPosts')
-          .where('userId', whereIn: _following)
+          .where('userId', whereIn: userIdsToQuery)  // Use the combined list
           .orderBy('timestamp', descending: true)
           .limit(20)
           .get();
@@ -114,8 +111,23 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   Widget _buildPostImage(String? imageUrl) {
-    if (imageUrl == null || imageUrl.isEmpty) {
-      return const SizedBox.shrink();
+    // Check if imageUrl is null, empty, or invalid
+    if (imageUrl == null || imageUrl.isEmpty || !Uri.parse(imageUrl).isAbsolute) {
+      return Container(
+        height: 300,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: CupertinoColors.systemGrey6,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Center(
+          child: Icon(
+            CupertinoIcons.photo,
+            size: 40,
+            color: CupertinoColors.systemGrey,
+          ),
+        ),
+      );
     }
 
     return Container(
@@ -157,80 +169,107 @@ class _FriendsPageState extends State<FriendsPage> {
         ? post['timestamp'] as DateTime
         : (post['timestamp'] as Timestamp).toDate();
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: CupertinoColors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                _buildUserAvatar(post['userId']),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildUserInfo(post['userId']),
-                ),
-                Text(
-                  _getTimeAgo(timestamp),
-                  style: const TextStyle(
-                    color: CupertinoColors.systemGrey,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: () {
+        // Navigate to inspect post page
+        Navigator.pushNamed(
+          context,
+          '/inspectPost',
+          arguments: post['postId'],
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: CupertinoColors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A000000),
+              blurRadius: 10,
+              offset: Offset(0, 2),
             ),
-          ),
-          if (post['imageUrls'] != null && 
-              (post['imageUrls'] as List).isNotEmpty)
-            SizedBox(
-              height: 300,
-              child: PageView.builder(
-                itemCount: (post['imageUrls'] as List).length,
-                itemBuilder: (context, index) {
-                  final imageUrl = post['imageUrls'][index];
-                  return _buildPostImage(imageUrl);
-                },
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  post['mealTitle'] ?? 'Untitled Meal',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (post['mealDescription'] != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      post['mealDescription'],
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: CupertinoColors.systemGrey,
-                      ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: post['userId'] != FirebaseAuth.instance.currentUser?.uid
+                        ? () {
+                            // Navigate to other profile page
+                            Navigator.pushNamed(
+                              context,
+                              '/otherProfile',
+                              arguments: post['userId'],
+                            );
+                          }
+                        : null,
+                    child: Row(
+                      children: [
+                        _buildUserAvatar(post['userId']),
+                        const SizedBox(width: 8),
+                        _buildUserInfo(post['userId']),
+                      ],
                     ),
                   ),
-              ],
+                  const Spacer(),
+                  Text(
+                    _getTimeAgo(timestamp),
+                    style: const TextStyle(
+                      color: CupertinoColors.systemGrey,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            if (post['imageUrls'] != null && 
+                (post['imageUrls'] as List).isNotEmpty)
+              SizedBox(
+                height: 300,
+                child: PageView.builder(
+                  itemCount: (post['imageUrls'] as List).length,
+                  itemBuilder: (context, index) {
+                    final imageUrl = post['imageUrls'][index];
+                    return _buildPostImage(imageUrl);
+                  },
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    post['mealTitle'] ?? 'Untitled Meal',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (post['mealDescription'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        post['mealDescription'],
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: CupertinoColors.systemGrey,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -266,11 +305,9 @@ class _FriendsPageState extends State<FriendsPage> {
         return CircleAvatar(
           radius: 20,
           backgroundImage: NetworkImage(profileImageUrl),
-          onBackgroundImageError: (_, __) {},
-          child: const Icon(
-            CupertinoIcons.person_fill,
-            color: CupertinoColors.systemGrey2,
-          ),
+          onBackgroundImageError: (_, __) {
+            print('Error loading profile image');  // Just log the error
+          },
         );
       },
     );
@@ -330,6 +367,7 @@ class _FriendsPageState extends State<FriendsPage> {
       navigationBar: const CupertinoNavigationBar(
         backgroundColor: Color(0xFFFAF8F5),
         middle: Text('Feed'),
+        transitionBetweenRoutes: false,
       ),
       child: _isLoading
           ? const Center(child: CupertinoActivityIndicator())
@@ -340,7 +378,12 @@ class _FriendsPageState extends State<FriendsPage> {
                   onRefresh: _loadFollowingAndPosts,
                 ),
                 SliverPadding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.only(
+                    left: 8.0,
+                    right: 8.0,
+                    top: 8.0,
+                    bottom: 85.0,
+                  ),
                   sliver: _mealPosts.isEmpty
                       ? const SliverFillRemaining(
                           child: Center(

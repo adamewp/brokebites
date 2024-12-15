@@ -36,8 +36,8 @@ class StartUpPage extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  GestureDetector(
-                    onTap: () {
+                  CupertinoButton(
+                    onPressed: () {
                       Navigator.pushNamed(context, '/login');
                     },
                     child: Container(
@@ -62,8 +62,9 @@ class StartUpPage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () {
+                  const SizedBox(width: 20),
+                  CupertinoButton(
+                    onPressed: () {
                       Navigator.pushNamed(context, '/signup');
                     },
                     child: Container(
@@ -71,13 +72,17 @@ class StartUpPage extends StatelessWidget {
                       width: 100,
                       decoration: BoxDecoration(
                         color: const Color(0xFFF4EFDA),
+                        border: Border.all(
+                          color: const Color(0xFF201F23),
+                          width: 1,
+                        ),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Center(
                         child: Text(
                           'Sign Up',
                           style: TextStyle(
-                            color: CupertinoColors.black,
+                            color: Color(0xFF201F23),
                             fontSize: 18,
                           ),
                         ),

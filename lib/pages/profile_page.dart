@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'package:image/image.dart' as Im;
 import 'package:path_provider/path_provider.dart';
 import 'dart:math';
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -105,7 +106,12 @@ class _ProfileContentState extends State<ProfileContent> {
           .collection('mealPosts')
           .where('userId', isEqualTo: userId)
           .orderBy('timestamp', descending: true)
+          .limit(_postsPerPage)
           .get();
+
+      if (postDocs.docs.isNotEmpty) {
+        _lastDocument = postDocs.docs.last;
+      }
 
       setState(() {
         _posts = postDocs.docs.map((doc) {
@@ -270,6 +276,12 @@ class _ProfileContentState extends State<ProfileContent> {
   }
 
   Future<void> _refreshProfile() async {
+    setState(() {
+      _posts = [];
+      _lastDocument = null;
+      _hasMorePosts = true;
+    });
+    
     await Future.wait([
       _loadUserProfile(),
       _loadUserPosts(),
@@ -339,11 +351,30 @@ class _ProfileContentState extends State<ProfileContent> {
                 child: PageView.builder(
                   itemCount: (post['imageUrls'] as List).length,
                   itemBuilder: (context, imageIndex) {
-                    return Hero(
-                      tag: 'post-${post['postId']}-image-$imageIndex',
-                      child: Image.network(
-                        post['imageUrls'][imageIndex],
-                        fit: BoxFit.cover,
+                    return WillPopScope(
+                      onWillPop: () async {
+                        Navigator.of(context).pop();
+                        return false;
+                      },
+                      child: Hero(
+                        tag: 'post-${post['postId']}-image-$imageIndex-list-${post['postId']}',
+                        child: CachedNetworkImage(
+                          imageUrl: post['imageUrls'][imageIndex] ?? '',
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => const Center(child: CupertinoActivityIndicator()),
+                          errorWidget: (context, url, error) {
+                            if (url.isEmpty) {
+                              return const Center(
+                                child: Icon(
+                                  CupertinoIcons.photo,
+                                  size: 40,
+                                  color: CupertinoColors.systemGrey,
+                                ),
+                              );
+                            }
+                            return const Icon(CupertinoIcons.exclamationmark_triangle);
+                          },
+                        ),
                       ),
                     );
                   },
@@ -442,9 +473,10 @@ class _ProfileContentState extends State<ProfileContent> {
     });
 
     try {
+      String userId = _auth.currentUser!.uid;
       Query query = FirebaseFirestore.instance
           .collection('mealPosts')
-          .where('userId', whereIn: _following)
+          .where('userId', isEqualTo: userId)
           .orderBy('timestamp', descending: true)
           .limit(_postsPerPage);
 
@@ -482,22 +514,6 @@ class _ProfileContentState extends State<ProfileContent> {
         _isLoadingMore = false;
       });
     }
-  }
-
-  Future<void> _loadFollowingAndPosts() async {
-    final prefs = await SharedPreferences.getInstance();
-    final cachedData = prefs.getString(_postsDataCacheKey);
-    
-    if (cachedData != null) {
-      setState(() {
-        _posts = List<Map<String, dynamic>>.from(
-          json.decode(cachedData).map((x) => Map<String, dynamic>.from(x))
-        );
-      });
-    }
-    
-    await _loadFollowing();
-    await _loadFriendsMealPosts();
   }
 
   Future<File> _compressImage(File file) async {
@@ -548,36 +564,6 @@ class _ProfileContentState extends State<ProfileContent> {
       }
     } catch (e) {
       print('Error loading following: $e');
-    }
-  }
-
-  Future<void> _loadFriendsMealPosts() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      // Get posts from Firestore
-      final QuerySnapshot postDocs = await FirebaseFirestore.instance
-          .collection('mealPosts')
-          .where('userId', isEqualTo: user.uid)
-          .orderBy('timestamp', descending: true)
-          .get();
-
-      // Convert the documents to a list of maps
-      List<Map<String, dynamic>> posts = postDocs.docs.map((doc) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        return {
-          'postId': doc.id,
-          ...data,
-        };
-      }).toList();
-
-      setState(() {
-        _posts = posts;
-      });
-
-    } catch (e) {
-      print('Error loading posts: $e');
     }
   }
 
@@ -746,7 +732,9 @@ class _ProfileContentState extends State<ProfileContent> {
                     itemCount: _posts.length,
                     itemBuilder: (context, index) {
                       if (index >= _posts.length - 5 && !_isLoadingMore && _hasMorePosts) {
-                        _loadMorePosts();
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _loadMorePosts();
+                        });
                       }
                       return _buildPostItem(_posts[index]);
                     },
