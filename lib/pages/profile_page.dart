@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,6 +11,8 @@ import 'package:image/image.dart' as Im;
 import 'package:path_provider/path_provider.dart';
 import 'dart:math';
 import 'package:flutter/widgets.dart' show WidgetsBinding;
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -42,8 +43,8 @@ class ProfileContent extends StatefulWidget {
 }
 
 class _ProfileContentState extends State<ProfileContent> {
-  File? _profileImage;
   final ImagePicker _picker = ImagePicker();
+  File? _profileImage;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String _name = '';
   String _bio = '';
@@ -167,33 +168,6 @@ class _ProfileContentState extends State<ProfileContent> {
     }
   }
 
-  Future<void> _pickImage() async {
-    try {
-      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        setState(() {
-          _profileImage = File(pickedFile.path);
-        });
-        
-        String userId = _auth.currentUser!.uid;
-        Reference ref = _storage.ref().child('profile_images').child('$userId.jpg');
-        await ref.putFile(_profileImage!);
-        
-        String downloadUrl = await ref.getDownloadURL();
-        
-        await FirebaseFirestore.instance.collection('users').doc(userId).update({
-          'profileImageUrl': downloadUrl,
-        });
-        
-        setState(() {
-          _profileImageUrl = downloadUrl;
-        });
-      }
-    } catch (e) {
-      print('Error uploading image: $e');
-      _showErrorMessage('Failed to update profile picture');
-    }
-  }
 
   void _showListDialog(String listType, List<String> usernames) {
     showCupertinoDialog(
@@ -567,6 +541,74 @@ class _ProfileContentState extends State<ProfileContent> {
     }
   }
 
+  Future<void> _updateProfileImageWithCropper() async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image == null) return;
+
+      print("Image picked: ${image.path}"); // Debug log
+
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          IOSUiSettings(
+            title: 'Crop Image',
+            doneButtonTitle: 'Done',
+            cancelButtonTitle: 'Cancel',
+            aspectRatioLockEnabled: true,
+            rotateButtonsHidden: true,
+            aspectRatioPickerButtonHidden: true,
+          ),
+        ],
+      );
+
+      if (croppedFile == null) {
+        print("No cropped file"); // Debug log
+        return;
+      }
+
+      print("Image cropped: ${croppedFile.path}"); // Debug log
+
+      String userId = _auth.currentUser!.uid;
+      File imageFile = File(croppedFile.path);
+      
+      // Compress the image
+      File compressedImage = await _compressImage(imageFile);
+      
+      print("Image compressed"); // Debug log
+
+      // Upload image to Firebase Storage
+      String fileName = 'profile_images/$userId.jpg';
+      await _storage.ref(fileName).putFile(compressedImage);
+      
+      print("Image uploaded to storage"); // Debug log
+
+      // Get download URL
+      String downloadUrl = await _storage.ref(fileName).getDownloadURL();
+      
+      print("Got download URL: $downloadUrl"); // Debug log
+
+      // Update Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update({'profileImageUrl': downloadUrl});
+      
+      print("Firestore updated"); // Debug log
+
+      setState(() {
+        _profileImageUrl = downloadUrl;
+      });
+
+      print("State updated"); // Debug log
+    } catch (e, stackTrace) {
+      print('Error updating profile image: $e');
+      print('Stack trace: $stackTrace');
+      _showErrorMessage('Failed to update profile picture: ${e.toString()}');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
@@ -594,41 +636,44 @@ class _ProfileContentState extends State<ProfileContent> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  CachedNetworkImage(
-                    imageUrl: _profileImageUrl ?? '',
-                    imageBuilder: (context, imageProvider) => Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        image: DecorationImage(
-                          image: imageProvider,
-                          fit: BoxFit.cover,
+                  GestureDetector(
+                    onTap: _updateProfileImageWithCropper,
+                    child: CachedNetworkImage(
+                      imageUrl: _profileImageUrl ?? '',
+                      imageBuilder: (context, imageProvider) => Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          image: DecorationImage(
+                            image: imageProvider,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
-                    ),
-                    placeholder: (context, url) => Container(
-                      width: 100,
-                      height: 100,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: CupertinoColors.systemGrey5,
+                      placeholder: (context, url) => Container(
+                        width: 100,
+                        height: 100,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: CupertinoColors.systemGrey5,
+                        ),
+                        child: const Center(
+                          child: CupertinoActivityIndicator(),
+                        ),
                       ),
-                      child: const Center(
-                        child: CupertinoActivityIndicator(),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      width: 100,
-                      height: 100,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: CupertinoColors.systemGrey5,
-                      ),
-                      child: const Icon(
-                        CupertinoIcons.person_fill,
-                        size: 50,
-                        color: CupertinoColors.systemGrey,
+                      errorWidget: (context, url, error) => Container(
+                        width: 100,
+                        height: 100,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: CupertinoColors.systemGrey5,
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.person_fill,
+                          size: 50,
+                          color: CupertinoColors.systemGrey,
+                        ),
                       ),
                     ),
                   ),

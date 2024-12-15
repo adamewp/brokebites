@@ -7,10 +7,8 @@ import 'package:fluttertest/pages/accountSettings_page.dart';
 import 'package:fluttertest/pages/friends_page.dart';
 import 'package:fluttertest/pages/searchFriends_page.dart';
 import 'package:fluttertest/pages/comments_page.dart';
-import 'package:fluttertest/pages/ingredientsInput_page.dart';
 import 'package:fluttertest/pages/main_page.dart';
 import 'package:fluttertest/pages/newPost_flow.dart';
-import 'package:fluttertest/pages/postDetails_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
@@ -78,19 +76,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LogInPage(),
         '/signup': (context) => const SignUpPage(),
         '/profile': (context) => const ProfilePage(),
-        '/newPost': (context) => IngredientsPage(
-          onNext: (ingredients, portions) {
-            Navigator.push(
-              context,
-              CupertinoPageRoute(
-                builder: (context) => PostDetailsPage(
-                  ingredients: ingredients,
-                  portions: portions,
-                ),
-              ),
-            );
-          },
-        ),
+        '/newPost': (context) => const NewPostFlow(),
         '/accountSettings': (context) => const AccountSettingsPage(),
         '/friends': (context) => const FriendsPage(),
         '/searchFriends_page': (context) => const SearchFriendsPage(),

@@ -5,7 +5,6 @@ import 'package:fluttertest/pages/login_page.dart';
 import 'package:fluttertest/pages/profile_page.dart';
 import 'package:fluttertest/pages/accountSettings_page.dart';
 import 'package:fluttertest/pages/friends_page.dart';
-import 'package:fluttertest/pages/ingredientsInput_page.dart';
 import 'package:fluttertest/pages/newPost_flow.dart';
 
 class MainPage extends StatelessWidget {
