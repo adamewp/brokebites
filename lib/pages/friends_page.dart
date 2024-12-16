@@ -2,11 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertest/pages/searchFriends_page.dart';
-import 'package:fluttertest/pages/comments_page.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart' show CircleAvatar;
-
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -38,7 +34,7 @@ class _FriendsPageState extends State<FriendsPage> {
       if (!userDoc.exists) return;
 
       _following = List<String>.from(userDoc.data()?['following'] ?? []);
-      
+
       // Add current user's ID to the list of IDs to query
       List<String> userIdsToQuery = [..._following];
       userIdsToQuery.add(_auth.currentUser!.uid);
@@ -46,7 +42,7 @@ class _FriendsPageState extends State<FriendsPage> {
       // Then load posts from following users AND current user
       final QuerySnapshot postDocs = await FirebaseFirestore.instance
           .collection('mealPosts')
-          .where('userId', whereIn: userIdsToQuery)  // Use the combined list
+          .where('userId', whereIn: userIdsToQuery) // Use the combined list
           .orderBy('timestamp', descending: true)
           .limit(20)
           .get();
@@ -77,7 +73,7 @@ class _FriendsPageState extends State<FriendsPage> {
 
   Future<void> _loadFollowingAndPosts() async {
     if (!mounted) return;
-    
+
     setState(() {
       _isLoading = true;
     });
@@ -112,7 +108,9 @@ class _FriendsPageState extends State<FriendsPage> {
 
   Widget _buildPostImage(String? imageUrl) {
     // Check if imageUrl is null, empty, or invalid
-    if (imageUrl == null || imageUrl.isEmpty || !Uri.parse(imageUrl).isAbsolute) {
+    if (imageUrl == null ||
+        imageUrl.isEmpty ||
+        !Uri.parse(imageUrl).isAbsolute) {
       return Container(
         height: 300,
         width: double.infinity,
@@ -165,7 +163,7 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   Widget _buildPostCard(Map<String, dynamic> post) {
-    final timestamp = post['timestamp'] is DateTime 
+    final timestamp = post['timestamp'] is DateTime
         ? post['timestamp'] as DateTime
         : (post['timestamp'] as Timestamp).toDate();
 
@@ -201,16 +199,17 @@ class _FriendsPageState extends State<FriendsPage> {
                 children: [
                   CupertinoButton(
                     padding: EdgeInsets.zero,
-                    onPressed: post['userId'] != FirebaseAuth.instance.currentUser?.uid
-                        ? () {
-                            // Navigate to other profile page
-                            Navigator.pushNamed(
-                              context,
-                              '/otherProfile',
-                              arguments: post['userId'],
-                            );
-                          }
-                        : null,
+                    onPressed:
+                        post['userId'] != FirebaseAuth.instance.currentUser?.uid
+                            ? () {
+                                // Navigate to other profile page
+                                Navigator.pushNamed(
+                                  context,
+                                  '/otherProfile',
+                                  arguments: post['userId'],
+                                );
+                              }
+                            : null,
                     child: Row(
                       children: [
                         _buildUserAvatar(post['userId']),
@@ -230,7 +229,7 @@ class _FriendsPageState extends State<FriendsPage> {
                 ],
               ),
             ),
-            if (post['imageUrls'] != null && 
+            if (post['imageUrls'] != null &&
                 (post['imageUrls'] as List).isNotEmpty)
               SizedBox(
                 height: 300,
@@ -276,10 +275,7 @@ class _FriendsPageState extends State<FriendsPage> {
 
   Widget _buildUserAvatar(String userId) {
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get(),
+      future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const CircleAvatar(
@@ -306,7 +302,7 @@ class _FriendsPageState extends State<FriendsPage> {
           radius: 20,
           backgroundImage: NetworkImage(profileImageUrl),
           onBackgroundImageError: (_, __) {
-            print('Error loading profile image');  // Just log the error
+            print('Error loading profile image'); // Just log the error
           },
         );
       },
@@ -315,10 +311,7 @@ class _FriendsPageState extends State<FriendsPage> {
 
   Widget _buildUserInfo(String userId) {
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get(),
+      future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const CupertinoActivityIndicator();
@@ -409,7 +402,8 @@ class _FriendsPageState extends State<FriendsPage> {
                         )
                       : SliverList(
                           delegate: SliverChildBuilderDelegate(
-                            (context, index) => _buildPostCard(_mealPosts[index]),
+                            (context, index) =>
+                                _buildPostCard(_mealPosts[index]),
                             childCount: _mealPosts.length,
                           ),
                         ),

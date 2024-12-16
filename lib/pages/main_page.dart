@@ -1,9 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:fluttertest/pages/startup_page.dart';
-import 'package:fluttertest/pages/signup_page.dart';
-import 'package:fluttertest/pages/login_page.dart';
 import 'package:fluttertest/pages/profile_page.dart';
-import 'package:fluttertest/pages/accountSettings_page.dart';
 import 'package:fluttertest/pages/friends_page.dart';
 import 'package:fluttertest/pages/newPost_flow.dart';
 
@@ -25,7 +21,7 @@ class MainPageContent extends StatefulWidget {
 
 class _MainPageContentState extends State<MainPageContent> {
   int _selectedIndex = 0;
-  
+
   static const List<Widget> _pages = [
     FriendsPage(),
     ProfilePage(),

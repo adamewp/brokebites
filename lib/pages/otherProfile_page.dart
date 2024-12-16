@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/notification_service.dart';
 
 class OtherProfilePage extends StatefulWidget {
   final String userId;
@@ -19,8 +20,8 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
   List<Map<String, dynamic>> _posts = [];
   List<String> _following = [];
   List<String> _followers = [];
-  List<String> _followingUsernames = [];
-  List<String> _followerUsernames = [];
+  final List<String> _followingUsernames = [];
+  final List<String> _followerUsernames = [];
   String? _profileImageUrl;
   bool _isFollowing = false;
 
@@ -59,7 +60,8 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
           .doc(currentUserId)
           .get();
 
-      List<String> following = List<String>.from(currentUserDoc['following'] ?? []);
+      List<String> following =
+          List<String>.from(currentUserDoc['following'] ?? []);
       setState(() {
         _isFollowing = following.contains(widget.userId);
       });
@@ -71,15 +73,23 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
   Future<void> _toggleFollow() async {
     try {
       String currentUserId = _auth.currentUser!.uid;
-      DocumentReference currentUserDoc = FirebaseFirestore.instance.collection('users').doc(currentUserId);
-      DocumentReference otherUserDoc = FirebaseFirestore.instance.collection('users').doc(widget.userId);
+      DocumentReference currentUserDoc =
+          FirebaseFirestore.instance.collection('users').doc(currentUserId);
+      DocumentReference otherUserDoc =
+          FirebaseFirestore.instance.collection('users').doc(widget.userId);
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        DocumentSnapshot currentUserSnapshot = await transaction.get(currentUserDoc);
-        DocumentSnapshot otherUserSnapshot = await transaction.get(otherUserDoc);
+        DocumentSnapshot currentUserSnapshot =
+            await transaction.get(currentUserDoc);
+        DocumentSnapshot otherUserSnapshot =
+            await transaction.get(otherUserDoc);
 
-        List<String> currentUserFollowing = List<String>.from(currentUserSnapshot['following'] ?? []);
-        List<String> otherUserFollowers = List<String>.from(otherUserSnapshot['followers'] ?? []);
+        List<String> currentUserFollowing =
+            List<String>.from(currentUserSnapshot['following'] ?? []);
+        List<String> otherUserFollowers =
+            List<String>.from(otherUserSnapshot['followers'] ?? []);
+
+        bool isFollowing = !_isFollowing;
 
         if (_isFollowing) {
           currentUserFollowing.remove(widget.userId);
@@ -91,6 +101,13 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
 
         transaction.update(currentUserDoc, {'following': currentUserFollowing});
         transaction.update(otherUserDoc, {'followers': otherUserFollowers});
+
+        if (isFollowing) {
+          await NotificationService.createFollowNotification(
+            followerId: currentUserId,
+            followedUserId: widget.userId,
+          );
+        }
       });
 
       setState(() {
@@ -122,7 +139,8 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
       }
 
       setState(() {
-        _name = '${userDoc['firstName'] ?? 'Unknown'} ${userDoc['lastName'] ?? 'User'}';
+        _name =
+            '${userDoc['firstName'] ?? 'Unknown'} ${userDoc['lastName'] ?? 'User'}';
         _bio = userDoc['bio'] ?? 'No bio available';
         _username = userDoc['username'] ?? 'No username';
         _profileImageUrl = userDoc['profileImageUrl'];
@@ -186,16 +204,16 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
     }
   }
 
-  Future<void> _loadUsernamesForList(List<String> ids, List<String> usernames) async {
+  Future<void> _loadUsernamesForList(
+      List<String> ids, List<String> usernames) async {
     usernames.clear();
     for (String id in ids) {
       try {
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(id)
-            .get();
+        DocumentSnapshot userDoc =
+            await FirebaseFirestore.instance.collection('users').doc(id).get();
         if (userDoc.exists) {
-          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+          Map<String, dynamic> userData =
+              userDoc.data() as Map<String, dynamic>;
           usernames.add(userData['username'] ?? 'Unknown User');
         }
       } catch (e) {
@@ -390,7 +408,8 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
                           color: CupertinoColors.white,
                           boxShadow: [
                             BoxShadow(
-                              color: CupertinoColors.systemGrey.withOpacity(0.1),
+                              color:
+                                  CupertinoColors.systemGrey.withOpacity(0.1),
                               blurRadius: 10,
                               offset: const Offset(0, 2),
                             ),
@@ -405,7 +424,9 @@ class _OtherProfilePageState extends State<OtherProfilePage> {
                                 width: double.infinity,
                                 height: 300,
                                 child: PageView.builder(
-                                  itemCount: (_posts[index]['imageUrls'] as List).length,
+                                  itemCount:
+                                      (_posts[index]['imageUrls'] as List)
+                                          .length,
                                   itemBuilder: (context, imageIndex) {
                                     return Image.network(
                                       _posts[index]['imageUrls'][imageIndex],

@@ -1,6 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:fluttertest/pages/signup_page.dart';
-import 'package:fluttertest/pages/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'splash_screen.dart';
 
@@ -23,7 +21,7 @@ class _StartUpPageState extends State<StartUpPage> {
   Future<void> _checkAuthState() async {
     // Add a small delay to show the splash screen
     await Future.delayed(const Duration(seconds: 2));
-    
+
     // Check if user is already logged in
     if (FirebaseAuth.instance.currentUser != null) {
       if (mounted) {

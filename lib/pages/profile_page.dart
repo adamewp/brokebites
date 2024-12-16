@@ -3,16 +3,13 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'package:image/image.dart' as Im;
 import 'package:path_provider/path_provider.dart';
 import 'dart:math';
-import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/notification_service.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -28,8 +25,8 @@ class ProfileScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: const Color(0xFFFAF8F5),
+    return const CupertinoPageScaffold(
+      backgroundColor: Color(0xFFFAF8F5),
       child: ProfileContent(),
     );
   }
@@ -53,7 +50,7 @@ class _ProfileContentState extends State<ProfileContent> {
   List<String> _following = [];
   List<String> _followers = [];
   List<String> _followingUsernames = [];
-  List<String> _followerUsernames = [];
+  final List<String> _followerUsernames = [];
   String? _profileImageUrl;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   bool _isLoadingMore = false;
@@ -73,7 +70,10 @@ class _ProfileContentState extends State<ProfileContent> {
   Future _loadUserProfile() async {
     try {
       String userId = _auth.currentUser!.uid;
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
 
       if (!userDoc.exists) {
         print('User document does not exist');
@@ -81,7 +81,8 @@ class _ProfileContentState extends State<ProfileContent> {
       }
 
       setState(() {
-        _name = '${userDoc['firstName'] ?? 'Unknown'} ${userDoc['lastName'] ?? 'User'}';
+        _name =
+            '${userDoc['firstName'] ?? 'Unknown'} ${userDoc['lastName'] ?? 'User'}';
         _bio = userDoc['bio'] ?? 'No bio available';
         _username = userDoc['username'] ?? 'No username';
         _profileImageUrl = userDoc['profileImageUrl'];
@@ -124,7 +125,10 @@ class _ProfileContentState extends State<ProfileContent> {
   Future _loadFollowingAndFollowers() async {
     try {
       String userId = _auth.currentUser!.uid;
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
 
       if (!userDoc.exists) {
         print('User document does not exist');
@@ -145,12 +149,15 @@ class _ProfileContentState extends State<ProfileContent> {
     }
   }
 
-  Future<void> _loadUsernamesForList(List<String> ids, List<String> usernames) async {
+  Future<void> _loadUsernamesForList(
+      List<String> ids, List<String> usernames) async {
     for (String id in ids) {
       try {
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(id).get();
+        DocumentSnapshot userDoc =
+            await FirebaseFirestore.instance.collection('users').doc(id).get();
         if (userDoc.exists) {
-          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+          Map<String, dynamic> userData =
+              userDoc.data() as Map<String, dynamic>;
           usernames.add(userData['username'] ?? 'Unknown User');
         }
       } catch (e) {
@@ -159,14 +166,13 @@ class _ProfileContentState extends State<ProfileContent> {
     }
   }
 
-
   void _showListDialog(String listType, List<String> usernames) {
     showCupertinoDialog(
       context: context,
       builder: (context) {
         return CupertinoAlertDialog(
           title: Text(listType),
-          content: Container(
+          content: SizedBox(
             height: 200,
             width: double.maxFinite,
             child: CupertinoScrollbar(
@@ -205,9 +211,9 @@ class _ProfileContentState extends State<ProfileContent> {
           .collection('mealPosts')
           .doc(postId)
           .get();
-      
+
       Map<String, dynamic> postData = postDoc.data() as Map<String, dynamic>;
-      
+
       // Delete all images from storage if they exist
       if (postData['imageUrls'] != null) {
         for (String imageUrl in List<String>.from(postData['imageUrls'])) {
@@ -220,12 +226,15 @@ class _ProfileContentState extends State<ProfileContent> {
       }
 
       // Delete the post document
-      await FirebaseFirestore.instance.collection('mealPosts').doc(postId).delete();
-      
+      await FirebaseFirestore.instance
+          .collection('mealPosts')
+          .doc(postId)
+          .delete();
+
       setState(() {
         _posts.removeWhere((post) => post['postId'] == postId);
       });
-      
+
       _showErrorMessage('Post deleted successfully');
     } catch (e) {
       print('Error deleting post: $e');
@@ -246,7 +255,7 @@ class _ProfileContentState extends State<ProfileContent> {
       _lastDocument = null;
       _hasMorePosts = true;
     });
-    
+
     await Future.wait([
       _loadUserProfile(),
       _loadUserPosts(),
@@ -261,20 +270,20 @@ class _ProfileContentState extends State<ProfileContent> {
     try {
       String userId = _auth.currentUser!.uid;
       File imageFile = File(image.path);
-      
+
       // Upload image to Firebase Storage
       String fileName = 'profile_images/$userId.jpg';
       await _storage.ref(fileName).putFile(imageFile);
-      
+
       // Get download URL
       String downloadUrl = await _storage.ref(fileName).getDownloadURL();
-      
+
       // Update Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userId)
           .update({'profileImageUrl': downloadUrl});
-      
+
       setState(() {
         _profileImageUrl = downloadUrl;
       });
@@ -308,9 +317,9 @@ class _ProfileContentState extends State<ProfileContent> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (post['imageUrls'] != null && 
+            if (post['imageUrls'] != null &&
                 (post['imageUrls'] as List).isNotEmpty)
-              Container(
+              SizedBox(
                 height: 200,
                 width: double.infinity,
                 child: PageView.builder(
@@ -322,11 +331,13 @@ class _ProfileContentState extends State<ProfileContent> {
                         return false;
                       },
                       child: Hero(
-                        tag: 'post-${post['postId']}-image-$imageIndex-list-${post['postId']}',
+                        tag:
+                            'post-${post['postId']}-image-$imageIndex-list-${post['postId']}',
                         child: CachedNetworkImage(
                           imageUrl: post['imageUrls'][imageIndex] ?? '',
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => const Center(child: CupertinoActivityIndicator()),
+                          placeholder: (context, url) =>
+                              const Center(child: CupertinoActivityIndicator()),
                           errorWidget: (context, url, error) {
                             if (url.isEmpty) {
                               return const Center(
@@ -337,7 +348,8 @@ class _ProfileContentState extends State<ProfileContent> {
                                 ),
                               );
                             }
-                            return const Icon(CupertinoIcons.exclamationmark_triangle);
+                            return const Icon(
+                                CupertinoIcons.exclamationmark_triangle);
                           },
                         ),
                       ),
@@ -432,7 +444,7 @@ class _ProfileContentState extends State<ProfileContent> {
 
   Future<void> _loadMorePosts() async {
     if (_isLoadingMore) return;
-    
+
     setState(() {
       _isLoadingMore = true;
     });
@@ -450,7 +462,7 @@ class _ProfileContentState extends State<ProfileContent> {
       }
 
       QuerySnapshot snapshot = await query.get();
-      
+
       if (snapshot.docs.isEmpty) {
         setState(() {
           _hasMorePosts = false;
@@ -488,12 +500,13 @@ class _ProfileContentState extends State<ProfileContent> {
 
     Im.Image? image = Im.decodeImage(file.readAsBytesSync());
     if (image == null) return file;
-    
-    Im.Image smallerImage = Im.copyResize(image, width: 1024); // Fixed width, maintain aspect ratio
-    
+
+    Im.Image smallerImage =
+        Im.copyResize(image, width: 1024); // Fixed width, maintain aspect ratio
+
     final compressedImage = File('$path/img_$rand.jpg')
       ..writeAsBytesSync(Im.encodeJpg(smallerImage, quality: 85));
-      
+
     return compressedImage;
   }
 
@@ -520,7 +533,7 @@ class _ProfileContentState extends State<ProfileContent> {
             .collection('users')
             .doc(userId)
             .get();
-        
+
         if (followingDoc.exists) {
           setState(() {
             _followingUsernames.add(followingDoc.data()?['username'] ?? '');
@@ -563,21 +576,21 @@ class _ProfileContentState extends State<ProfileContent> {
 
       String userId = _auth.currentUser!.uid;
       File imageFile = File(croppedFile.path);
-      
+
       // Compress the image
       File compressedImage = await _compressImage(imageFile);
-      
+
       print("Image compressed"); // Debug log
 
       // Upload image to Firebase Storage
       String fileName = 'profile_images/$userId.jpg';
       await _storage.ref(fileName).putFile(compressedImage);
-      
+
       print("Image uploaded to storage"); // Debug log
 
       // Get download URL
       String downloadUrl = await _storage.ref(fileName).getDownloadURL();
-      
+
       print("Got download URL: $downloadUrl"); // Debug log
 
       // Update Firestore
@@ -585,7 +598,7 @@ class _ProfileContentState extends State<ProfileContent> {
           .collection('users')
           .doc(userId)
           .update({'profileImageUrl': downloadUrl});
-      
+
       print("Firestore updated"); // Debug log
 
       setState(() {
@@ -607,6 +620,51 @@ class _ProfileContentState extends State<ProfileContent> {
       navigationBar: CupertinoNavigationBar(
         backgroundColor: const Color(0xFFFAF8F5),
         middle: Text(_username),
+        leading: Stack(
+          children: [
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: const Icon(
+                CupertinoIcons.bell,
+                color: Color(0xFF25242A),
+              ),
+              onPressed: () => Navigator.pushNamed(context, '/notifications'),
+            ),
+            StreamBuilder<int>(
+              stream: NotificationService.getUnreadNotificationsCount(
+                  _auth.currentUser!.uid),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data == 0) {
+                  return const SizedBox.shrink();
+                }
+                return Positioned(
+                  right: 10,
+                  top: 10,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: CupertinoColors.systemRed,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      snapshot.data! > 99 ? '99+' : '${snapshot.data}',
+                      style: const TextStyle(
+                        color: CupertinoColors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
           child: const Icon(
@@ -701,9 +759,9 @@ class _ProfileContentState extends State<ProfileContent> {
                         ),
                         child: Column(
                           children: [
-                            Text(
+                            const Text(
                               'Following',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 color: Color(0xFF25242A),
                               ),
@@ -729,9 +787,9 @@ class _ProfileContentState extends State<ProfileContent> {
                         ),
                         child: Column(
                           children: [
-                            Text(
+                            const Text(
                               'Followers',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 color: Color(0xFF25242A),
                               ),
@@ -767,7 +825,9 @@ class _ProfileContentState extends State<ProfileContent> {
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: _posts.length,
                     itemBuilder: (context, index) {
-                      if (index >= _posts.length - 5 && !_isLoadingMore && _hasMorePosts) {
+                      if (index >= _posts.length - 5 &&
+                          !_isLoadingMore &&
+                          _hasMorePosts) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           _loadMorePosts();
                         });
@@ -807,7 +867,8 @@ class _ProfileContentState extends State<ProfileContent> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
               child: Image.network(
                 post['imageUrls'][0],
                 fit: BoxFit.cover,

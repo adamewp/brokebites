@@ -18,13 +18,22 @@ class _NewPostFlowState extends State<NewPostFlow> {
   final TextEditingController _portionsController = TextEditingController();
   final TextEditingController _ingredientController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
-  List<File> _selectedImages = [];
+  final List<File> _selectedImages = [];
   bool _isLoading = false;
-  
+
   final List<String> _units = [
-    'g', 'kg', 'ml', 'L', 'cup', 'tbsp', 'tsp', 'oz', 'lb', 'pcs'
+    'g',
+    'kg',
+    'ml',
+    'L',
+    'cup',
+    'tbsp',
+    'tsp',
+    'oz',
+    'lb',
+    'pcs'
   ];
-  List<Map<String, dynamic>> _ingredients = [];
+  final List<Map<String, dynamic>> _ingredients = [];
 
   static const double _borderRadius = 10.0;
   static const Color _borderColor = CupertinoColors.systemGrey4;
@@ -72,16 +81,14 @@ class _NewPostFlowState extends State<NewPostFlow> {
       return;
     }
 
-    final List<XFile>? images = await _picker.pickMultiImage();
-    if (images != null) {
-      setState(() {
-        for (var image in images) {
-          if (_selectedImages.length < 5) {
-            _selectedImages.add(File(image.path));
-          }
+    final List<XFile> images = await _picker.pickMultiImage();
+    setState(() {
+      for (var image in images) {
+        if (_selectedImages.length < 5) {
+          _selectedImages.add(File(image.path));
         }
-      });
-    }
+      }
+    });
   }
 
   void _removeImage(int index) {
@@ -111,7 +118,8 @@ class _NewPostFlowState extends State<NewPostFlow> {
 
       List<String> imageUrls = [];
       for (File image in _selectedImages) {
-        String fileName = 'posts/${DateTime.now().millisecondsSinceEpoch}_${imageUrls.length}.jpg';
+        String fileName =
+            'posts/${DateTime.now().millisecondsSinceEpoch}_${imageUrls.length}.jpg';
         Reference ref = FirebaseStorage.instance.ref().child(fileName);
         await ref.putFile(image);
         String downloadUrl = await ref.getDownloadURL();
@@ -190,21 +198,21 @@ class _NewPostFlowState extends State<NewPostFlow> {
                     ),
                   ),
                   const SizedBox(height: _spacing),
-                  
                   _buildSection(
                     child: CupertinoTextField.borderless(
                       controller: _portionsController,
                       placeholder: 'Number of Portions',
-                      keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: false),
                       prefix: const Padding(
                         padding: EdgeInsets.only(left: 12),
-                        child: Icon(CupertinoIcons.person_2_fill, color: CupertinoColors.systemGrey),
+                        child: Icon(CupertinoIcons.person_2_fill,
+                            color: CupertinoColors.systemGrey),
                       ),
                       padding: const EdgeInsets.all(12),
                     ),
                   ),
                   const SizedBox(height: _spacing),
-
                   _buildSection(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -230,7 +238,8 @@ class _NewPostFlowState extends State<NewPostFlow> {
                                   placeholder: 'Add ingredient',
                                   decoration: BoxDecoration(
                                     color: CupertinoColors.systemGrey6,
-                                    borderRadius: BorderRadius.circular(_borderRadius),
+                                    borderRadius:
+                                        BorderRadius.circular(_borderRadius),
                                   ),
                                   padding: const EdgeInsets.all(12),
                                 ),
@@ -243,24 +252,27 @@ class _NewPostFlowState extends State<NewPostFlow> {
                                     _ingredientController.clear();
                                   }
                                 },
-                                child: const Icon(CupertinoIcons.add_circled_solid),
+                                child: const Icon(
+                                    CupertinoIcons.add_circled_solid),
                               ),
                             ],
                           ),
                         ),
-                        if (_ingredients.isNotEmpty) Container(height: 1, color: _borderColor),
+                        if (_ingredients.isNotEmpty)
+                          Container(height: 1, color: _borderColor),
                         ListView.separated(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: _ingredients.length,
-                          separatorBuilder: (context, index) => Container(height: 1, color: _borderColor),
-                          itemBuilder: (context, index) => _buildIngredientItem(index),
+                          separatorBuilder: (context, index) =>
+                              Container(height: 1, color: _borderColor),
+                          itemBuilder: (context, index) =>
+                              _buildIngredientItem(index),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: _spacing),
-
                   _buildSection(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -282,7 +294,8 @@ class _NewPostFlowState extends State<NewPostFlow> {
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
                               itemCount: _selectedImages.length,
-                              itemBuilder: (context, index) => _buildImageItem(index),
+                              itemBuilder: (context, index) =>
+                                  _buildImageItem(index),
                             ),
                           ),
                         ],
@@ -291,14 +304,14 @@ class _NewPostFlowState extends State<NewPostFlow> {
                           onPressed: _pickImage,
                           child: Text(
                             'Add Photos (${_selectedImages.length}/5)',
-                            style: const TextStyle(color: CupertinoColors.activeBlue),
+                            style: const TextStyle(
+                                color: CupertinoColors.activeBlue),
                           ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: _spacing),
-
                   CupertinoButton.filled(
                     onPressed: _isLoading ? null : _submitPost,
                     child: const Text('Share Recipe'),
@@ -347,7 +360,8 @@ class _NewPostFlowState extends State<NewPostFlow> {
           Expanded(
             child: CupertinoTextField(
               placeholder: 'Amount',
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               onChanged: (value) => _updateIngredient(
                 index,
                 value,
@@ -366,13 +380,16 @@ class _NewPostFlowState extends State<NewPostFlow> {
               padding: EdgeInsets.zero,
               onPressed: () => _showUnitPicker(index),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
                 decoration: BoxDecoration(
                   color: CupertinoColors.systemGrey6,
                   borderRadius: BorderRadius.circular(_borderRadius),
                 ),
                 child: Text(
-                  _ingredients[index]['unit'] == '' ? 'Unit' : _ingredients[index]['unit'],
+                  _ingredients[index]['unit'] == ''
+                      ? 'Unit'
+                      : _ingredients[index]['unit'],
                   style: TextStyle(
                     color: _ingredients[index]['unit'] == ''
                         ? CupertinoColors.systemGrey
@@ -456,7 +473,7 @@ class _NewPostFlowState extends State<NewPostFlow> {
                 },
                 child: Text(unit),
               );
-            }).toList(),
+            }),
             CupertinoActionSheetAction(
               onPressed: () {
                 _updateIngredient(

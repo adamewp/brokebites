@@ -9,6 +9,7 @@ import 'package:fluttertest/pages/searchFriends_page.dart';
 import 'package:fluttertest/pages/comments_page.dart';
 import 'package:fluttertest/pages/main_page.dart';
 import 'package:fluttertest/pages/newPost_flow.dart';
+import 'package:fluttertest/pages/notifications_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
@@ -17,13 +18,17 @@ import 'package:fluttertest/pages/otherProfile_page.dart';
 import 'package:fluttertest/pages/inspectPost_page.dart';
 import 'package:fluttertest/pages/followers_list.dart';
 import 'package:fluttertest/pages/following_list.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'services/messaging_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize messaging service
+  await MessagingService.initialize();
+
   runApp(const MyApp());
 }
 
@@ -34,14 +39,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return CupertinoApp(
       debugShowCheckedModeBanner: false,
-      theme: CupertinoThemeData(
+      theme: const CupertinoThemeData(
         brightness: Brightness.light,
-        primaryColor: const Color(0xFF25242A),
-        scaffoldBackgroundColor: const Color(0xFFFAF8F5),
-        barBackgroundColor: const Color(0xFFFAF8F5),
+        primaryColor: Color(0xFF25242A),
+        scaffoldBackgroundColor: Color(0xFFFAF8F5),
+        barBackgroundColor: Color(0xFFFAF8F5),
         textTheme: CupertinoTextThemeData(
-          primaryColor: const Color(0xFF25242A),
-          textStyle: const TextStyle(
+          primaryColor: Color(0xFF25242A),
+          textStyle: TextStyle(
             color: Color(0xFF25242A),
             fontFamily: '.SF Pro Text',
           ),
@@ -53,13 +58,13 @@ class MyApp extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.active) {
             User? user = snapshot.data;
             if (user == null) {
-              return StartUpPage();
+              return const StartUpPage();
             } else {
               return FutureBuilder<void>(
                 future: _initializeUserDocument(user.uid),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done) {
-                    return MainPage();
+                    return const MainPage();
                   } else {
                     return const CupertinoActivityIndicator();
                   }
@@ -79,28 +84,36 @@ class MyApp extends StatelessWidget {
         '/newPost': (context) => const NewPostFlow(),
         '/accountSettings': (context) => const AccountSettingsPage(),
         '/friends': (context) => const FriendsPage(),
+        '/notifications': (context) => const NotificationsPage(),
         '/searchFriends_page': (context) => const SearchFriendsPage(),
         '/comments': (context) {
-          final String postId = ModalRoute.of(context)!.settings.arguments as String;
+          final String postId =
+              ModalRoute.of(context)!.settings.arguments as String;
           return CommentsPage(postId: postId);
         },
         '/otherProfile': (context) {
-          final String userId = ModalRoute.of(context)!.settings.arguments as String;
+          final String userId =
+              ModalRoute.of(context)!.settings.arguments as String;
           return OtherProfilePage(userId: userId);
         },
         '/inspectPost': (context) {
-          final String postId = ModalRoute.of(context)!.settings.arguments as String;
+          final String postId =
+              ModalRoute.of(context)!.settings.arguments as String;
           return InspectPostPage(postId: postId);
         },
         '/followers': (context) {
-          final Map<String, dynamic> args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          final Map<String, dynamic> args = ModalRoute.of(context)!
+              .settings
+              .arguments as Map<String, dynamic>;
           return FollowersList(
             userId: args['userId'],
             isCurrentUser: args['isCurrentUser'],
           );
         },
         '/following': (context) {
-          final Map<String, dynamic> args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          final Map<String, dynamic> args = ModalRoute.of(context)!
+              .settings
+              .arguments as Map<String, dynamic>;
           return FollowingList(
             userId: args['userId'],
             isCurrentUser: args['isCurrentUser'],
@@ -111,15 +124,14 @@ class MyApp extends StatelessWidget {
   }
 
   Future<void> _initializeUserDocument(String userId) async {
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .get();
+    DocumentSnapshot userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
 
     if (!userDoc.exists) {
       await FirebaseFirestore.instance.collection('users').doc(userId).set({
         'following': [],
-        'username': FirebaseAuth.instance.currentUser!.displayName ?? 'Unnamed User',
+        'username':
+            FirebaseAuth.instance.currentUser!.displayName ?? 'Unnamed User',
       });
     }
   }

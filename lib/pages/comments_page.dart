@@ -1,11 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/notification_service.dart';
 
 class CommentsPage extends StatefulWidget {
   final String postId;
 
-  const CommentsPage({Key? key, required this.postId}) : super(key: key);
+  const CommentsPage({super.key, required this.postId});
 
   @override
   _CommentsPageState createState() => _CommentsPageState();
@@ -74,13 +75,22 @@ class _CommentsPageState extends State<CommentsPage> {
     if (comment.isEmpty) return;
 
     try {
+      DocumentSnapshot postDoc = await FirebaseFirestore.instance
+          .collection('mealPosts')
+          .doc(widget.postId)
+          .get();
+
+      Map<String, dynamic> postData = postDoc.data() as Map<String, dynamic>;
+      String postOwnerId = postData['userId'];
+      String postTitle = postData['mealTitle'] ?? 'Untitled Post';
+
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(userId)
           .get();
-      
-      String username = userDoc.exists && userDoc['username'] != null 
-          ? userDoc['username'] 
+
+      String username = userDoc.exists && userDoc['username'] != null
+          ? userDoc['username']
           : 'Anonymous';
       Timestamp timestamp = Timestamp.now();
 
@@ -96,6 +106,14 @@ class _CommentsPageState extends State<CommentsPage> {
           }
         ]),
       });
+
+      await NotificationService.createCommentNotification(
+        postId: widget.postId,
+        postOwnerId: postOwnerId,
+        commenterId: userId,
+        postTitle: postTitle,
+        comment: comment,
+      );
 
       setState(() {
         _comments.add({
@@ -132,32 +150,28 @@ class _CommentsPageState extends State<CommentsPage> {
 
   Future<bool> _isMyComment(String commentUsername) async {
     String userId = _auth.currentUser!.uid;
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .get();
+    DocumentSnapshot userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
     return userDoc['username'] == commentUsername;
   }
 
   Future<void> _deleteComment(Map<String, dynamic> commentToDelete) async {
     try {
-      DocumentReference postRef = FirebaseFirestore.instance
-          .collection('mealPosts')
-          .doc(widget.postId);
-      
+      DocumentReference postRef =
+          FirebaseFirestore.instance.collection('mealPosts').doc(widget.postId);
+
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         DocumentSnapshot postSnapshot = await transaction.get(postRef);
-        
+
         if (!postSnapshot.exists) {
           throw Exception("Post does not exist!");
         }
 
         List<dynamic> comments = List.from(postSnapshot['comments'] ?? []);
         comments.removeWhere((comment) =>
-          comment['username'] == commentToDelete['username'] &&
-          comment['text'] == commentToDelete['text'] &&
-          comment['timestamp'] == commentToDelete['timestamp']
-        );
+            comment['username'] == commentToDelete['username'] &&
+            comment['text'] == commentToDelete['text'] &&
+            comment['timestamp'] == commentToDelete['timestamp']);
 
         transaction.update(postRef, {'comments': comments});
         setState(() {
@@ -244,7 +258,8 @@ class _CommentsPageState extends State<CommentsPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     comment['username'],
@@ -256,7 +271,8 @@ class _CommentsPageState extends State<CommentsPage> {
                                   FutureBuilder<bool>(
                                     future: _isMyComment(comment['username']),
                                     builder: (context, snapshot) {
-                                      if (snapshot.hasData && snapshot.data == true) {
+                                      if (snapshot.hasData &&
+                                          snapshot.data == true) {
                                         return CupertinoButton(
                                           padding: EdgeInsets.zero,
                                           onPressed: () {
@@ -264,24 +280,28 @@ class _CommentsPageState extends State<CommentsPage> {
                                               context: context,
                                               builder: (BuildContext context) {
                                                 return CupertinoAlertDialog(
-                                                  title: const Text('Delete Comment'),
+                                                  title: const Text(
+                                                      'Delete Comment'),
                                                   content: const Text(
-                                                    'Are you sure you want to delete this comment?'
-                                                  ),
+                                                      'Are you sure you want to delete this comment?'),
                                                   actions: [
                                                     CupertinoDialogAction(
-                                                      onPressed: () => 
-                                                          Navigator.of(context).pop(),
-                                                      child: const Text('Cancel'),
+                                                      onPressed: () =>
+                                                          Navigator.of(context)
+                                                              .pop(),
                                                       isDefaultAction: true,
+                                                      child:
+                                                          const Text('Cancel'),
                                                     ),
                                                     CupertinoDialogAction(
                                                       onPressed: () {
-                                                        Navigator.of(context).pop();
+                                                        Navigator.of(context)
+                                                            .pop();
                                                         _deleteComment(comment);
                                                       },
-                                                      child: const Text('Delete'),
                                                       isDestructiveAction: true,
+                                                      child:
+                                                          const Text('Delete'),
                                                     ),
                                                   ],
                                                 );

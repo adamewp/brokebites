@@ -13,14 +13,19 @@ class AccountSettingsPage extends StatefulWidget {
 
 class _AccountSettingsPageState extends State<AccountSettingsPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String _bio = '';
+  final String _bio = '';
   late TextEditingController _bioController;
-  List<String> _dietaryRestrictions = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free'];
-  String _dob = '';
+  final List<String> _dietaryRestrictions = [
+    'Vegetarian',
+    'Vegan',
+    'Gluten-Free',
+    'Dairy-Free'
+  ];
+  final String _dob = '';
   late TextEditingController _dobController;
-  String _firstName = '';
+  final String _firstName = '';
   late TextEditingController _firstNameController;
-  String _lastName = '';
+  final String _lastName = '';
   late TextEditingController _lastNameController;
   final ImagePicker _picker = ImagePicker();
   File? _profileImage;
@@ -48,8 +53,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
   Future _loadUserProfile() async {
     String userId = _auth.currentUser!.uid;
-    DocumentSnapshot snapshot = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-    
+    DocumentSnapshot snapshot =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
+
     if (snapshot.exists) {
       var data = snapshot.data() as Map<String, dynamic>;
       setState(() {
@@ -58,8 +64,11 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         _dobController.text = data['dob'] ?? '';
         _bioController.text = data['bio'] ?? '';
         _username = data['username'] ?? '';
-        _selectedRestrictions = List.generate(_dietaryRestrictions.length, (index) {
-          return data['dietaryRestrictions']?.contains(_dietaryRestrictions[index]) ?? false;
+        _selectedRestrictions =
+            List.generate(_dietaryRestrictions.length, (index) {
+          return data['dietaryRestrictions']
+                  ?.contains(_dietaryRestrictions[index]) ??
+              false;
         });
       });
     }
@@ -97,7 +106,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
     try {
       String userId = _auth.currentUser!.uid;
-      
+
       // Create a list of selected dietary restrictions
       List<String> selectedDietaryRestrictions = [];
       for (int i = 0; i < _selectedRestrictions.length; i++) {
@@ -114,8 +123,11 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         'dietaryRestrictions': selectedDietaryRestrictions,
       };
 
-      await FirebaseFirestore.instance.collection('users').doc(userId).update(userData);
-      
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update(userData);
+
       showCupertinoDialog(
         context: context,
         builder: (context) {
@@ -149,16 +161,17 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
               isDefaultAction: true,
+              child: const Text('Cancel'),
             ),
             CupertinoDialogAction(
               onPressed: () async {
                 await FirebaseAuth.instance.signOut();
-                Navigator.of(context).pushNamedAndRemoveUntil('/startup', (route) => false);
+                Navigator.of(context)
+                    .pushNamedAndRemoveUntil('/startup', (route) => false);
               },
-              child: const Text('Logout'),
               isDestructiveAction: true,
+              child: const Text('Logout'),
             ),
           ],
         );
@@ -240,14 +253,16 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
-                    border: Border.all(color: CupertinoColors.systemGrey.withOpacity(0.3)),
+                    border: Border.all(
+                        color: CupertinoColors.systemGrey.withOpacity(0.3)),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: CupertinoButton(
                     padding: EdgeInsets.zero,
                     onPressed: () {
                       setState(() {
-                        _selectedRestrictions[index] = !_selectedRestrictions[index];
+                        _selectedRestrictions[index] =
+                            !_selectedRestrictions[index];
                       });
                     },
                     child: Row(

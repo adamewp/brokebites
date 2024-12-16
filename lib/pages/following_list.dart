@@ -7,10 +7,10 @@ class FollowingList extends StatefulWidget {
   final bool isCurrentUser;
 
   const FollowingList({
-    Key? key, 
+    super.key,
     required this.userId,
     required this.isCurrentUser,
-  }) : super(key: key);
+  });
 
   @override
   _FollowingListState createState() => _FollowingListState();
@@ -63,12 +63,15 @@ class _FollowingListState extends State<FollowingList> {
             .get();
 
         if (followingDoc.exists) {
-          Map<String, dynamic> userData = followingDoc.data() as Map<String, dynamic>;
+          Map<String, dynamic> userData =
+              followingDoc.data() as Map<String, dynamic>;
           followingDetails.add({
             'userId': followingId,
             'username': userData['username'] ?? 'Unknown User',
             'profileImageUrl': userData['profileImageUrl'],
-            'name': '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'.trim(),
+            'name':
+                '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'
+                    .trim(),
           });
         }
       }
@@ -103,7 +106,8 @@ class _FollowingListState extends State<FollowingList> {
                   final following = _following[index];
                   return GestureDetector(
                     onTap: () {
-                      if (following['userId'] != FirebaseAuth.instance.currentUser?.uid) {
+                      if (following['userId'] !=
+                          FirebaseAuth.instance.currentUser?.uid) {
                         Navigator.pushNamed(
                           context,
                           '/otherProfile',
@@ -114,7 +118,8 @@ class _FollowingListState extends State<FollowingList> {
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 12.0),
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
@@ -132,7 +137,8 @@ class _FollowingListState extends State<FollowingList> {
                               shape: BoxShape.circle,
                               image: following['profileImageUrl'] != null
                                   ? DecorationImage(
-                                      image: NetworkImage(following['profileImageUrl']),
+                                      image: NetworkImage(
+                                          following['profileImageUrl']),
                                       fit: BoxFit.cover,
                                     )
                                   : null,
@@ -143,7 +149,8 @@ class _FollowingListState extends State<FollowingList> {
                             child: following['profileImageUrl'] == null
                                 ? Center(
                                     child: Text(
-                                      (following['username'] ?? 'U')[0].toUpperCase(),
+                                      (following['username'] ?? 'U')[0]
+                                          .toUpperCase(),
                                       style: const TextStyle(
                                         color: CupertinoColors.white,
                                         fontSize: 16,

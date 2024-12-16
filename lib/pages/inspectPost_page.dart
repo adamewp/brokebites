@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertest/pages/comments_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/notification_service.dart';
 
 class InspectPostPage extends StatefulWidget {
   final String postId;
@@ -82,6 +83,7 @@ class _InspectPostPageState extends State<InspectPostPage> {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         DocumentSnapshot postSnapshot = await transaction.get(postRef);
         List<dynamic> likes = List.from(postSnapshot['likes'] ?? []);
+        bool isLiking = !likes.contains(currentUserId);
 
         if (likes.contains(currentUserId)) {
           likes.remove(currentUserId);
@@ -90,6 +92,15 @@ class _InspectPostPageState extends State<InspectPostPage> {
         }
 
         transaction.update(postRef, {'likes': likes});
+
+        if (isLiking && _postData!['userId'] != currentUserId) {
+          await NotificationService.createLikeNotification(
+            postId: widget.postId,
+            postOwnerId: _postData!['userId'],
+            likerId: currentUserId,
+            postTitle: _postData!['mealTitle'] ?? 'Untitled Post',
+          );
+        }
 
         setState(() {
           _postData!['likes'] = likes;

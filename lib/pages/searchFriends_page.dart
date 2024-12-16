@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class SearchFriendsPage extends StatefulWidget {
-  const SearchFriendsPage({Key? key}) : super(key: key);
+  const SearchFriendsPage({super.key});
 
   @override
   _SearchFriendsPageState createState() => _SearchFriendsPageState();
@@ -13,7 +13,7 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _searchResults = [];
   String _searchQuery = '';
-  Map<String, String> _followStatus = {};
+  final Map<String, String> _followStatus = {};
   late String currentUserId;
 
   @override
@@ -34,7 +34,8 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
 
   Future<void> _fetchFollowingList() async {
     try {
-      DocumentReference currentUserRef = FirebaseFirestore.instance.collection('users').doc(currentUserId);
+      DocumentReference currentUserRef =
+          FirebaseFirestore.instance.collection('users').doc(currentUserId);
       DocumentSnapshot currentUserSnapshot = await currentUserRef.get();
 
       if (currentUserSnapshot.exists) {
@@ -54,37 +55,36 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
     try {
       if (_searchQuery.isNotEmpty) {
         String searchTerm = _searchQuery.toLowerCase();
-        
+
         // Query users where username or name contains the search term
-        QuerySnapshot userDocs = await FirebaseFirestore.instance
-            .collection('users')
-            .get();
+        QuerySnapshot userDocs =
+            await FirebaseFirestore.instance.collection('users').get();
 
         if (mounted) {
           setState(() {
-            _searchResults = userDocs.docs
-                .where((doc) {
-                  final data = doc.data() as Map<String, dynamic>?;
-                  if (doc.exists && data != null && data['userId'] != currentUserId) {
-                    String username = (data['username'] ?? '').toLowerCase();
-                    String firstName = (data['firstName'] ?? '').toLowerCase();
-                    String lastName = (data['lastName'] ?? '').toLowerCase();
-                    return username.contains(searchTerm) || 
-                           firstName.contains(searchTerm) || 
-                           lastName.contains(searchTerm);
-                  }
-                  return false;
-                })
-                .map((doc) {
-                  var data = doc.data() as Map<String, dynamic>;
-                  return {
-                    'userId': data['userId'],
-                    'username': data['username'],
-                    'profileImageUrl': data['profileImageUrl'],
-                    'name': '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}'.trim(),
-                  };
-                })
-                .toList();
+            _searchResults = userDocs.docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>?;
+              if (doc.exists &&
+                  data != null &&
+                  data['userId'] != currentUserId) {
+                String username = (data['username'] ?? '').toLowerCase();
+                String firstName = (data['firstName'] ?? '').toLowerCase();
+                String lastName = (data['lastName'] ?? '').toLowerCase();
+                return username.contains(searchTerm) ||
+                    firstName.contains(searchTerm) ||
+                    lastName.contains(searchTerm);
+              }
+              return false;
+            }).map((doc) {
+              var data = doc.data() as Map<String, dynamic>;
+              return {
+                'userId': data['userId'],
+                'username': data['username'],
+                'profileImageUrl': data['profileImageUrl'],
+                'name': '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}'
+                    .trim(),
+              };
+            }).toList();
           });
         }
       } else {
@@ -106,7 +106,8 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
       }
 
       String currentUserId = currentUser.uid;
-      DocumentReference currentUserRef = FirebaseFirestore.instance.collection('users').doc(currentUserId);
+      DocumentReference currentUserRef =
+          FirebaseFirestore.instance.collection('users').doc(currentUserId);
       DocumentSnapshot currentUserSnapshot = await currentUserRef.get();
 
       if (!currentUserSnapshot.exists) {
@@ -123,7 +124,8 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
           'following': following,
         });
 
-        DocumentReference followedUserRef = FirebaseFirestore.instance.collection('users').doc(userIdToFollow);
+        DocumentReference followedUserRef =
+            FirebaseFirestore.instance.collection('users').doc(userIdToFollow);
         await followedUserRef.update({
           'followers': FieldValue.arrayUnion([currentUserId]),
         });
@@ -146,7 +148,8 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
       }
 
       String currentUserId = currentUser.uid;
-      DocumentReference currentUserRef = FirebaseFirestore.instance.collection('users').doc(currentUserId);
+      DocumentReference currentUserRef =
+          FirebaseFirestore.instance.collection('users').doc(currentUserId);
       DocumentSnapshot currentUserSnapshot = await currentUserRef.get();
 
       if (!currentUserSnapshot.exists) {
@@ -163,7 +166,9 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
           'following': following,
         });
 
-        DocumentReference followedUserRef = FirebaseFirestore.instance.collection('users').doc(userIdToUnfollow);
+        DocumentReference followedUserRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(userIdToUnfollow);
         await followedUserRef.update({
           'followers': FieldValue.arrayRemove([currentUserId]),
         });
@@ -181,9 +186,9 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       backgroundColor: const Color(0xFFFAF8F5),
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text('Search Friends'),
-        backgroundColor: const Color(0xFFFAF8F5),
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Search Friends'),
+        backgroundColor: Color(0xFFFAF8F5),
       ),
       child: SafeArea(
         child: Column(
@@ -216,11 +221,13 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
                         bool isFollowing = _followStatus[userId] == "Following";
 
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 12.0),
                           decoration: BoxDecoration(
                             border: Border(
                               bottom: BorderSide(
-                                color: CupertinoColors.systemGrey.withOpacity(0.2),
+                                color:
+                                    CupertinoColors.systemGrey.withOpacity(0.2),
                                 width: 0.5,
                               ),
                             ),
@@ -234,7 +241,8 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
                                   shape: BoxShape.circle,
                                   image: user['profileImageUrl'] != null
                                       ? DecorationImage(
-                                          image: NetworkImage(user['profileImageUrl']),
+                                          image: NetworkImage(
+                                              user['profileImageUrl']),
                                           fit: BoxFit.cover,
                                         )
                                       : null,
@@ -245,7 +253,8 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
                                 child: user['profileImageUrl'] == null
                                     ? Center(
                                         child: Text(
-                                          (user['username'] ?? 'U')[0].toUpperCase(),
+                                          (user['username'] ?? 'U')[0]
+                                              .toUpperCase(),
                                           style: const TextStyle(
                                             color: CupertinoColors.white,
                                             fontSize: 16,

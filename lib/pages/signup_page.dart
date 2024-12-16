@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/keychain_service.dart';
+import '../services/passkey_service.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -18,20 +20,32 @@ class _SignUpPageState extends State<SignUpPage> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final _keychainService = KeychainService();
+  final _passkeyService = PasskeyService();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   bool _emailsMatch = false;
   bool _passwordsMatch = false;
+  bool _rememberMe = true;
+  bool _isPasskeyAvailable = false;
 
   @override
   void initState() {
     super.initState();
+    _checkPasskeyAvailability();
     // Add listeners to email and password fields
     _emailController.addListener(_checkEmailsMatch);
     _confirmEmailController.addListener(_checkEmailsMatch);
     _passwordController.addListener(_checkPasswordsMatch);
     _confirmPasswordController.addListener(_checkPasswordsMatch);
+  }
+
+  Future<void> _checkPasskeyAvailability() async {
+    final isAvailable = await _passkeyService.isPasskeyAvailable();
+    setState(() {
+      _isPasskeyAvailable = isAvailable;
+    });
   }
 
   @override
@@ -102,7 +116,8 @@ class _SignUpPageState extends State<SignUpPage> {
       }
 
       // Check if email already exists before creating account
-      final emailExists = await FirebaseAuth.instance.fetchSignInMethodsForEmail(_emailController.text);
+      final emailExists = await FirebaseAuth.instance
+          .fetchSignInMethodsForEmail(_emailController.text);
       if (emailExists.isNotEmpty) {
         _showErrorDialog('Email already in use. Please use a different email.');
         setState(() => _isLoading = false);
@@ -110,13 +125,17 @@ class _SignUpPageState extends State<SignUpPage> {
       }
 
       // Create user account
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
 
       // Save user details to Firestore
-      await FirebaseFirestore.instance.collection('users').doc(userCredential.user?.uid).set({
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user?.uid)
+          .set({
         'userId': userCredential.user?.uid,
         'username': username,
         'email': _emailController.text,
@@ -126,6 +145,19 @@ class _SignUpPageState extends State<SignUpPage> {
         'following': [],
         'followers': []
       });
+
+      // If Passkey is available, show prompt to save credentials
+      if (_isPasskeyAvailable) {
+        await _showPasskeyPrompt(
+            _emailController.text, _passwordController.text, username);
+      } else if (_rememberMe) {
+        // Fall back to keychain if Passkey is not available
+        await _keychainService.saveCredentials(
+          email: _emailController.text,
+          password: _passwordController.text,
+          username: username,
+        );
+      }
 
       // Navigate to main page after successful sign-up
       Navigator.of(context).pushNamedAndRemoveUntil(
@@ -140,6 +172,39 @@ class _SignUpPageState extends State<SignUpPage> {
       _showErrorDialog(errorMessage);
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _showPasskeyPrompt(
+      String email, String password, String username) async {
+    final bool? shouldSave = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: const Text('Save with Passkey'),
+          content: const Text(
+              'Would you like to save your credentials securely using Passkey? This will allow you to sign in quickly using biometrics next time.'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Not Now'),
+            ),
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(true),
+              isDefaultAction: true,
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldSave == true) {
+      await _passkeyService.saveCredentialsWithPasskey(
+        email: email,
+        password: password,
+        username: username,
+      );
     }
   }
 
@@ -199,7 +264,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     const SizedBox(width: 40),
                   ],
                 ),
-                
+
                 // Form section
                 Expanded(
                   child: SingleChildScrollView(
@@ -288,13 +353,13 @@ class _SignUpPageState extends State<SignUpPage> {
                           suffix: CupertinoButton(
                             padding: const EdgeInsets.only(right: 10),
                             child: Icon(
-                              _obscurePassword 
-                                  ? CupertinoIcons.eye 
+                              _obscurePassword
+                                  ? CupertinoIcons.eye
                                   : CupertinoIcons.eye_slash,
                               color: CupertinoColors.systemGrey,
                             ),
-                            onPressed: () => setState(() => 
-                                _obscurePassword = !_obscurePassword),
+                            onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -325,13 +390,14 @@ class _SignUpPageState extends State<SignUpPage> {
                               CupertinoButton(
                                 padding: const EdgeInsets.only(right: 10),
                                 child: Icon(
-                                  _obscureConfirmPassword 
-                                      ? CupertinoIcons.eye 
+                                  _obscureConfirmPassword
+                                      ? CupertinoIcons.eye
                                       : CupertinoIcons.eye_slash,
                                   color: CupertinoColors.systemGrey,
                                 ),
-                                onPressed: () => setState(() => 
-                                    _obscureConfirmPassword = !_obscureConfirmPassword),
+                                onPressed: () => setState(() =>
+                                    _obscureConfirmPassword =
+                                        !_obscureConfirmPassword),
                               ),
                             ],
                           ),
@@ -343,9 +409,9 @@ class _SignUpPageState extends State<SignUpPage> {
                             color: CupertinoColors.systemGrey6,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Column(
+                          child: const Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
                                 'Password must include:',
                                 style: TextStyle(
@@ -362,12 +428,44 @@ class _SignUpPageState extends State<SignUpPage> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            CupertinoButton(
+                              padding: EdgeInsets.zero,
+                              onPressed: () {
+                                setState(() => _rememberMe = !_rememberMe);
+                              },
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _rememberMe
+                                        ? CupertinoIcons.checkmark_square_fill
+                                        : CupertinoIcons.square,
+                                    color: _rememberMe
+                                        ? CupertinoColors.activeBlue
+                                        : CupertinoColors.systemGrey,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Remember Me',
+                                    style: TextStyle(
+                                      color: CupertinoColors.black,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 30),
                       ],
                     ),
                   ),
                 ),
-                
+
                 // Sign up button section
                 Padding(
                   padding: const EdgeInsets.only(bottom: 40.0),
