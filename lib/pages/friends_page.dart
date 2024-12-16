@@ -364,10 +364,22 @@ class _FriendsPageState extends State<FriendsPage> {
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       backgroundColor: const Color(0xFFFAF8F5),
-      navigationBar: const CupertinoNavigationBar(
-        backgroundColor: Color(0xFFFAF8F5),
-        middle: Text('Feed'),
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: const Color(0xFFFAF8F5),
+        middle: const Text('Feed'),
         transitionBetweenRoutes: false,
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(CupertinoIcons.search),
+          onPressed: () {
+            Navigator.push(
+              context,
+              CupertinoPageRoute(
+                builder: (context) => const SearchFriendsPage(),
+              ),
+            );
+          },
+        ),
       ),
       child: _isLoading
           ? const Center(child: CupertinoActivityIndicator())

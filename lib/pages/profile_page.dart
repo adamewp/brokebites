@@ -70,15 +70,6 @@ class _ProfileContentState extends State<ProfileContent> {
     _loadFollowingAndFollowers();
   }
 
-  Future<void> _logout() async {
-    try {
-      await _auth.signOut();
-      Navigator.pushReplacementNamed(context, '/startup');
-    } catch (e) {
-      print('Error logging out: $e');
-    }
-  }
-
   Future _loadUserProfile() async {
     try {
       String userId = _auth.currentUser!.uid;

@@ -1,99 +1,108 @@
 import 'package:flutter/cupertino.dart';
 import 'package:fluttertest/pages/signup_page.dart';
 import 'package:fluttertest/pages/login_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'splash_screen.dart';
 
-class StartUpPage extends StatelessWidget {
+class StartUpPage extends StatefulWidget {
   const StartUpPage({super.key});
 
   @override
+  _StartUpPageState createState() => _StartUpPageState();
+}
+
+class _StartUpPageState extends State<StartUpPage> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthState();
+  }
+
+  Future<void> _checkAuthState() async {
+    // Add a small delay to show the splash screen
+    await Future.delayed(const Duration(seconds: 2));
+    
+    // Check if user is already logged in
+    if (FirebaseAuth.instance.currentUser != null) {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/main');
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SplashScreen();
+    }
+
     return CupertinoPageScaffold(
-      backgroundColor: const Color(0xFFF4EFDA),
-      child: Column(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Container(
-              color: const Color(0xFFF4EFDA),
-              child: Center(
+      backgroundColor: CupertinoColors.systemBackground,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const SizedBox(height: 40),
+              Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Image.asset(
-                      'lib/images/bb_logo.png',
+                      'lib/images/bb_text_image.png',
+                      height: 200,
                       fit: BoxFit.contain,
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 40),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Share your recipes with friends and discover new favorites',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: CupertinoColors.systemGrey,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              color: const Color(0xFF201F24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  CupertinoButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/login');
-                    },
-                    child: Container(
-                      height: 50,
-                      width: 100,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF201F23),
-                        border: Border.all(
-                          color: const Color(0xFFF4EFDA),
-                          width: 1,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'Log In',
-                          style: TextStyle(
-                            color: CupertinoColors.white,
-                            fontSize: 18,
-                          ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 40.0),
+                child: Column(
+                  children: [
+                    CupertinoButton.filled(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/signup');
+                      },
+                      child: const Text('Create Account'),
+                    ),
+                    const SizedBox(height: 16),
+                    CupertinoButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/login');
+                      },
+                      child: const Text(
+                        'Sign In',
+                        style: TextStyle(
+                          color: Color(0xFF201F24),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 20),
-                  CupertinoButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/signup');
-                    },
-                    child: Container(
-                      height: 50,
-                      width: 100,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF4EFDA),
-                        border: Border.all(
-                          color: const Color(0xFF201F23),
-                          width: 1,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'Sign Up',
-                          style: TextStyle(
-                            color: Color(0xFF201F23),
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

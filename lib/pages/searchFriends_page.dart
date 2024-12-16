@@ -53,16 +53,11 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
   Future<void> _searchUsers() async {
     try {
       if (_searchQuery.isNotEmpty) {
-        String searchTerm = _searchQuery.startsWith('@') 
-            ? _searchQuery.substring(1).toLowerCase() 
-            : _searchQuery.toLowerCase();
+        String searchTerm = _searchQuery.toLowerCase();
         
+        // Query users where username or name contains the search term
         QuerySnapshot userDocs = await FirebaseFirestore.instance
             .collection('users')
-            .orderBy('username')
-            .startAt([searchTerm])
-            .endAt(['$searchTerm\uf8ff'])
-            .limit(10)
             .get();
 
         if (mounted) {
@@ -70,13 +65,23 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
             _searchResults = userDocs.docs
                 .where((doc) {
                   final data = doc.data() as Map<String, dynamic>?;
-                  return doc.exists && data != null && data.containsKey('userId') && data['userId'] != currentUserId;
+                  if (doc.exists && data != null && data['userId'] != currentUserId) {
+                    String username = (data['username'] ?? '').toLowerCase();
+                    String firstName = (data['firstName'] ?? '').toLowerCase();
+                    String lastName = (data['lastName'] ?? '').toLowerCase();
+                    return username.contains(searchTerm) || 
+                           firstName.contains(searchTerm) || 
+                           lastName.contains(searchTerm);
+                  }
+                  return false;
                 })
                 .map((doc) {
                   var data = doc.data() as Map<String, dynamic>;
                   return {
                     'userId': data['userId'],
                     'username': data['username'],
+                    'profileImageUrl': data['profileImageUrl'],
+                    'name': '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}'.trim(),
                   };
                 })
                 .toList();
@@ -175,8 +180,10 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
+      backgroundColor: const Color(0xFFFAF8F5),
       navigationBar: CupertinoNavigationBar(
         middle: const Text('Search Friends'),
+        backgroundColor: const Color(0xFFFAF8F5),
       ),
       child: SafeArea(
         child: Column(
@@ -204,40 +211,88 @@ class _SearchFriendsPageState extends State<SearchFriendsPage> {
                   ? ListView.builder(
                       itemCount: _searchResults.length,
                       itemBuilder: (context, index) {
-                        String userId = _searchResults[index]['userId'];
+                        final user = _searchResults[index];
+                        String userId = user['userId'];
                         bool isFollowing = _followStatus[userId] == "Following";
 
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          decoration: const BoxDecoration(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                          decoration: BoxDecoration(
                             border: Border(
                               bottom: BorderSide(
-                                color: CupertinoColors.separator,
-                                width: 0.0,
+                                color: CupertinoColors.systemGrey.withOpacity(0.2),
+                                width: 0.5,
                               ),
                             ),
                           ),
-                          child: CupertinoListTile(
-                            title: Text(
-                              '@${_searchResults[index]['username']}',
-                              style: const TextStyle(
-                                color: CupertinoColors.label,
-                              ),
-                            ),
-                            trailing: CupertinoButton(
-                              padding: EdgeInsets.zero,
-                              onPressed: isFollowing
-                                  ? () => _unfollowUser(userId)
-                                  : () => _followUser(userId),
-                              child: Text(
-                                isFollowing ? "Following" : "Follow",
-                                style: TextStyle(
-                                  color: isFollowing
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  image: user['profileImageUrl'] != null
+                                      ? DecorationImage(
+                                          image: NetworkImage(user['profileImageUrl']),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                  color: user['profileImageUrl'] == null
                                       ? CupertinoColors.systemGrey
-                                      : CupertinoColors.activeBlue,
+                                      : null,
+                                ),
+                                child: user['profileImageUrl'] == null
+                                    ? Center(
+                                        child: Text(
+                                          (user['username'] ?? 'U')[0].toUpperCase(),
+                                          style: const TextStyle(
+                                            color: CupertinoColors.white,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      user['username'],
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF25242A),
+                                      ),
+                                    ),
+                                    if (user['name'].isNotEmpty)
+                                      Text(
+                                        user['name'],
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: CupertinoColors.systemGrey,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                            ),
+                              CupertinoButton(
+                                padding: EdgeInsets.zero,
+                                onPressed: isFollowing
+                                    ? () => _unfollowUser(userId)
+                                    : () => _followUser(userId),
+                                child: Text(
+                                  isFollowing ? "Following" : "Follow",
+                                  style: TextStyle(
+                                    color: isFollowing
+                                        ? CupertinoColors.systemGrey
+                                        : CupertinoColors.activeBlue,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       },

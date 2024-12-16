@@ -3,7 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LogInPage extends StatefulWidget {
-  const LogInPage({super.key});
+  final bool showBackButton;
+  
+  const LogInPage({
+    super.key,
+    this.showBackButton = true,
+  });
 
   @override
   _LogInPageState createState() => _LogInPageState();
@@ -122,53 +127,103 @@ class _LogInPageState extends State<LogInPage> {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: const Color(0xFFF4EFDA),
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('Log In'),
-        backgroundColor: Color(0xFFF4EFDA),
-      ),
+      backgroundColor: CupertinoColors.systemBackground,
       child: GestureDetector(
         onTap: _dismissKeyboard,
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                CupertinoTextField(
-                  controller: _loginController,
-                  placeholder: 'Email or Username',
-                  keyboardType: TextInputType.emailAddress,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: CupertinoColors.systemGrey),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 12),
-                CupertinoTextField(
-                  controller: _passwordController,
-                  placeholder: 'Password',
-                  obscureText: _obscurePassword,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: CupertinoColors.systemGrey),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  suffix: CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    child: Icon(
-                      _obscurePassword ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                // Back button and title
+                Row(
+                  children: [
+                    if (widget.showBackButton)
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Icon(
+                          CupertinoIcons.back,
+                          color: Color(0xFF201F24),
+                        ),
+                      ),
+                    Expanded(
+                      child: Text(
+                        'Sign In',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    if (widget.showBackButton)
+                      const SizedBox(width: 40), // Balance the back button
+                  ],
+                ),
+                
+                // Logo and form section
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'lib/images/bb_text_image.png',
+                        height: 120,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(height: 40),
+                      CupertinoTextField(
+                        controller: _loginController,
+                        placeholder: 'Email or Username',
+                        keyboardType: TextInputType.emailAddress,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.systemGrey6,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        textInputAction: TextInputAction.next,
+                      ),
+                      const SizedBox(height: 16),
+                      CupertinoTextField(
+                        controller: _passwordController,
+                        placeholder: 'Password',
+                        obscureText: _obscurePassword,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.systemGrey6,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        suffix: CupertinoButton(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: Icon(
+                            _obscurePassword 
+                                ? CupertinoIcons.eye 
+                                : CupertinoIcons.eye_slash,
+                            color: CupertinoColors.systemGrey,
+                          ),
+                          onPressed: () => setState(() => 
+                              _obscurePassword = !_obscurePassword),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                CupertinoButton.filled(
-                  onPressed: _isLoading ? null : _logIn,
-                  child: _isLoading
-                      ? const CupertinoActivityIndicator(color: CupertinoColors.white)
-                      : const Text('Log In'),
+                
+                // Sign in button section
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 40.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: CupertinoButton.filled(
+                      onPressed: _isLoading ? null : _logIn,
+                      child: _isLoading
+                          ? const CupertinoActivityIndicator(
+                              color: CupertinoColors.white)
+                          : const Text('Sign In'),
+                    ),
+                  ),
                 ),
               ],
             ),

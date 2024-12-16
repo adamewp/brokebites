@@ -155,7 +155,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             CupertinoDialogAction(
               onPressed: () async {
                 await FirebaseAuth.instance.signOut();
-                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                Navigator.of(context).pushNamedAndRemoveUntil('/startup', (route) => false);
               },
               child: const Text('Logout'),
               isDestructiveAction: true,
