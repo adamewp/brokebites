@@ -177,7 +177,8 @@ class _SignUpPageState extends State<SignUpPage> {
         'lastName': _lastNameController.text,
         'bio': '',
         'following': [],
-        'followers': []
+        'followers': [],
+        'hasSeenWelcome': false,
       });
 
       // If Passkey is available, show prompt to save credentials
@@ -205,9 +206,9 @@ class _SignUpPageState extends State<SignUpPage> {
         );
       }
 
-      // Navigate to main page after successful sign-up
+      // Navigate to welcome page after successful sign-up
       Navigator.of(context).pushNamedAndRemoveUntil(
-        '/main',
+        '/welcome',
         (Route<dynamic> route) => false,
       );
     } catch (e) {
