@@ -18,8 +18,8 @@ import 'package:fluttertest/pages/otherProfile_page.dart';
 import 'package:fluttertest/pages/inspectPost_page.dart';
 import 'package:fluttertest/pages/followers_list.dart';
 import 'package:fluttertest/pages/following_list.dart';
-import 'services/messaging_service.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:fluttertest/pages/welcome_page.dart';
 
 // Create a global analytics instance
 final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
@@ -29,9 +29,6 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // Initialize messaging service
-  await MessagingService.initialize();
 
   // Enable analytics collection
   await analytics.setAnalyticsCollectionEnabled(true);
@@ -129,6 +126,7 @@ class MyApp extends StatelessWidget {
             isCurrentUser: args['isCurrentUser'],
           );
         },
+        '/welcome': (context) => const WelcomePage(),
       },
     );
   }

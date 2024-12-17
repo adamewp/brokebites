@@ -113,9 +113,18 @@ class _LogInPageState extends State<LogInPage> {
       }
 
       await _fetchUserData();
+
+      // Check if user has seen welcome page
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      bool hasSeenWelcome = userDoc.get('hasSeenWelcome') ?? false;
+
       Navigator.pushNamedAndRemoveUntil(
         context,
-        '/main',
+        hasSeenWelcome ? '/main' : '/welcome',
         (Route<dynamic> route) => false,
       );
     } catch (e) {

@@ -34,6 +34,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   final TextEditingController _deleteConfirmController =
       TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -109,10 +110,11 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       return;
     }
 
+    setState(() => _isLoading = true);
+
     try {
       String userId = _auth.currentUser!.uid;
 
-      // Create a list of selected dietary restrictions
       List<String> selectedDietaryRestrictions = [];
       for (int i = 0; i < _selectedRestrictions.length; i++) {
         if (_selectedRestrictions[i]) {
@@ -142,8 +144,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             actions: [
               CupertinoDialogAction(
                 onPressed: () {
-                  Navigator.of(context).pop(); // Close dialog
-                  Navigator.pop(context, true); // Return to previous screen
+                  Navigator.of(context).pop();
+                  Navigator.pop(context, true);
                 },
                 child: const Text('OK'),
               ),
@@ -153,6 +155,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       );
     } catch (e) {
       _showErrorDialog('Error saving profile: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -227,7 +231,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 }
 
                 try {
-                  // Re-authenticate user
                   final user = _auth.currentUser!;
                   final email = user.email!;
                   final credential = EmailAuthProvider.credential(
@@ -236,24 +239,20 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   );
                   await user.reauthenticateWithCredential(credential);
 
-                  // Delete user data from Firestore
                   await FirebaseFirestore.instance
                       .collection('users')
                       .doc(user.uid)
                       .delete();
 
-                  // Delete user account
                   await user.delete();
 
-                  // Clear controllers
                   _deleteConfirmController.clear();
                   _passwordController.clear();
 
-                  // Navigate to startup screen
                   Navigator.of(context)
                       .pushNamedAndRemoveUntil('/startup', (route) => false);
                 } catch (e) {
-                  Navigator.of(context).pop(); // Close the dialog
+                  Navigator.of(context).pop();
                   _showErrorDialog('Error deleting account: ${e.toString()}');
                 }
               },
@@ -266,170 +265,249 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     );
   }
 
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String placeholder,
+    bool isLastField = false,
+    bool obscureText = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: CupertinoColors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: CupertinoColors.systemGrey5,
+            width: isLastField ? 0 : 0.5,
+          ),
+        ),
+      ),
+      child: CupertinoTextField.borderless(
+        controller: controller,
+        placeholder: placeholder,
+        padding: const EdgeInsets.all(16),
+        obscureText: obscureText,
+        style: const TextStyle(
+          color: Color(0xFF25242A),
+          fontSize: 17,
+        ),
+        placeholderStyle: TextStyle(
+          color: const Color(0xFF25242A).withOpacity(0.4),
+          fontSize: 17,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection(
+      {required String title, required List<Widget> children}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 16, bottom: 8),
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: CupertinoColors.systemGrey,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: CupertinoColors.white,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            children: children,
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: const Color(0xFFFAF8F5),
+      backgroundColor: const Color(0xFFF6F6F6),
       navigationBar: const CupertinoNavigationBar(
         middle: Text('Account Settings'),
-        backgroundColor: Color(0xFFFAF8F5),
+        backgroundColor: CupertinoColors.white,
+        border: null,
       ),
       child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Text(
-                '@$_username',
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: CupertinoColors.systemGrey,
-                ),
-              ),
-              const SizedBox(height: 10),
-              CupertinoTextField(
-                controller: _firstNameController,
-                placeholder: 'First Name',
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: CupertinoColors.systemGrey),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              const SizedBox(height: 12),
-              CupertinoTextField(
-                controller: _lastNameController,
-                placeholder: 'Last Name',
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: CupertinoColors.systemGrey),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              const SizedBox(height: 12),
-              CupertinoTextField(
-                controller: _dobController,
-                placeholder: 'Date of Birth (DD/MM/YYYY)',
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: CupertinoColors.systemGrey),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              const SizedBox(height: 12),
-              CupertinoTextField(
-                controller: _bioController,
-                placeholder: 'Bio',
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: CupertinoColors.systemGrey),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Dietary Restrictions:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF25242A),
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...List.generate(_dietaryRestrictions.length, (index) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                        color: CupertinoColors.systemGrey.withOpacity(0.3)),
-                    borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    '@$_username',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF25242A),
+                    ),
                   ),
-                  child: CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: () {
-                      setState(() {
-                        _selectedRestrictions[index] =
-                            !_selectedRestrictions[index];
-                      });
-                    },
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 12),
-                        Icon(
-                          _selectedRestrictions[index]
-                              ? CupertinoIcons.checkmark_circle_fill
-                              : CupertinoIcons.circle,
-                          color: _selectedRestrictions[index]
-                              ? CupertinoColors.activeBlue
-                              : CupertinoColors.systemGrey,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          _dietaryRestrictions[index],
-                          style: TextStyle(
-                            color: _selectedRestrictions[index]
-                                ? CupertinoColors.activeBlue
-                                : CupertinoColors.black,
+                ),
+                const SizedBox(height: 20),
+                _buildSection(
+                  title: 'PROFILE INFORMATION',
+                  children: [
+                    _buildTextField(
+                      controller: _firstNameController,
+                      placeholder: 'First Name',
+                    ),
+                    _buildTextField(
+                      controller: _lastNameController,
+                      placeholder: 'Last Name',
+                    ),
+                    _buildTextField(
+                      controller: _dobController,
+                      placeholder: 'Date of Birth (DD/MM/YYYY)',
+                    ),
+                    _buildTextField(
+                      controller: _bioController,
+                      placeholder: 'Bio',
+                      isLastField: true,
+                    ),
+                  ],
+                ),
+                _buildSection(
+                  title: 'DIETARY RESTRICTIONS',
+                  children: List.generate(_dietaryRestrictions.length, (index) {
+                    bool isLast = index == _dietaryRestrictions.length - 1;
+                    return Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: isLast
+                                ? CupertinoColors.white
+                                : CupertinoColors.systemGrey5,
+                            width: 0.5,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 20),
-              CupertinoButton.filled(
-                onPressed: _saveUserProfile,
-                child: const Text('Save Profile'),
-              ),
-              const SizedBox(height: 40),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                onPressed: _handleLogout,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12.0),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: CupertinoColors.destructiveRed),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Logout',
-                      style: TextStyle(
-                        color: CupertinoColors.destructiveRed,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
                       ),
-                    ),
+                      child: CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () {
+                          setState(() {
+                            _selectedRestrictions[index] =
+                                !_selectedRestrictions[index];
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _dietaryRestrictions[index],
+                                style: const TextStyle(
+                                  color: Color(0xFF25242A),
+                                  fontSize: 17,
+                                ),
+                              ),
+                              Icon(
+                                _selectedRestrictions[index]
+                                    ? CupertinoIcons.checkmark_circle_fill
+                                    : CupertinoIcons.circle,
+                                color: _selectedRestrictions[index]
+                                    ? const Color(0xFF25242A)
+                                    : CupertinoColors.systemGrey3,
+                                size: 22,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: CupertinoButton.filled(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          onPressed: _isLoading ? null : _saveUserProfile,
+                          child: _isLoading
+                              ? const CupertinoActivityIndicator(
+                                  color: CupertinoColors.white)
+                              : const Text(
+                                  'Save Changes',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: _handleLogout,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: CupertinoColors.systemGrey4,
+                              width: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Logout',
+                              style: TextStyle(
+                                color: Color(0xFF25242A),
+                                fontSize: 17,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: _handleDeleteAccount,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: CupertinoColors.destructiveRed,
+                              width: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Delete Account',
+                              style: TextStyle(
+                                color: CupertinoColors.destructiveRed,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                onPressed: _handleDeleteAccount,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12.0),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: CupertinoColors.destructiveRed),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Delete Account',
-                      style: TextStyle(
-                        color: CupertinoColors.destructiveRed,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
+              ],
+            ),
           ),
         ),
       ),
