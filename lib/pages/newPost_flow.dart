@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class NewPostFlow extends StatefulWidget {
   const NewPostFlow({super.key});
@@ -48,6 +49,13 @@ class _NewPostFlowState extends State<NewPostFlow> {
         'unit': '',
       });
     });
+
+    FirebaseAnalytics.instance.logEvent(
+      name: 'ingredient_added',
+      parameters: {
+        'ingredients_count': _ingredients.length,
+      },
+    );
   }
 
   void _updateIngredient(int index, String amount, String unit) {
@@ -78,6 +86,12 @@ class _NewPostFlowState extends State<NewPostFlow> {
   Future<void> _pickImage() async {
     if (_selectedImages.length >= 5) {
       _showErrorMessage('Maximum 5 images allowed');
+      await FirebaseAnalytics.instance.logEvent(
+        name: 'post_creation_error',
+        parameters: {
+          'error_type': 'max_images_exceeded',
+        },
+      );
       return;
     }
 
@@ -89,6 +103,14 @@ class _NewPostFlowState extends State<NewPostFlow> {
         }
       }
     });
+
+    await FirebaseAnalytics.instance.logEvent(
+      name: 'images_selected',
+      parameters: {
+        'count': images.length,
+        'total_images': _selectedImages.length,
+      },
+    );
   }
 
   void _removeImage(int index) {
@@ -100,11 +122,23 @@ class _NewPostFlowState extends State<NewPostFlow> {
   Future<void> _submitPost() async {
     if (_titleController.text.isEmpty) {
       _showErrorMessage('Please enter a title');
+      await FirebaseAnalytics.instance.logEvent(
+        name: 'post_creation_error',
+        parameters: {
+          'error_type': 'missing_title',
+        },
+      );
       return;
     }
 
     if (_ingredients.isEmpty) {
       _showErrorMessage('Please add at least one ingredient');
+      await FirebaseAnalytics.instance.logEvent(
+        name: 'post_creation_error',
+        parameters: {
+          'error_type': 'no_ingredients',
+        },
+      );
       return;
     }
 
@@ -128,7 +162,9 @@ class _NewPostFlowState extends State<NewPostFlow> {
 
       int portions = int.tryParse(_portionsController.text) ?? 1;
 
-      await FirebaseFirestore.instance.collection('mealPosts').add({
+      // Create the post
+      DocumentReference postRef =
+          await FirebaseFirestore.instance.collection('mealPosts').add({
         'userId': user.uid,
         'mealTitle': _titleController.text,
         'mealDescription': _descriptionController.text,
@@ -140,9 +176,29 @@ class _NewPostFlowState extends State<NewPostFlow> {
         'comments': [],
       });
 
+      // Log successful post creation
+      await FirebaseAnalytics.instance.logEvent(
+        name: 'post_created',
+        parameters: {
+          'post_id': postRef.id,
+          'user_id': user.uid,
+          'ingredients_count': _ingredients.length,
+          'images_count': imageUrls.length,
+          'has_description': _descriptionController.text.isNotEmpty,
+          'portions': portions,
+        },
+      );
+
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       print('Error submitting post: $e');
+      await FirebaseAnalytics.instance.logEvent(
+        name: 'post_creation_error',
+        parameters: {
+          'error_type': 'submission_error',
+          'error_message': e.toString(),
+        },
+      );
       _showErrorMessage('Failed to submit post. Please try again.');
     } finally {
       setState(() {
