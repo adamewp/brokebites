@@ -187,7 +187,7 @@ class _SignUpPageState extends State<SignUpPage> {
         await FirebaseAnalytics.instance.logEvent(
           name: 'passkey_prompt_shown',
           parameters: {
-            'user_id': userCredential.user?.uid,
+            'user_id': userCredential.user?.uid ?? 'unknown',
           },
         );
       } else if (_rememberMe) {
@@ -200,7 +200,7 @@ class _SignUpPageState extends State<SignUpPage> {
         await FirebaseAnalytics.instance.logEvent(
           name: 'credentials_saved_to_keychain',
           parameters: {
-            'user_id': userCredential.user?.uid,
+            'user_id': userCredential.user?.uid ?? 'unknown',
           },
         );
       }
@@ -219,7 +219,7 @@ class _SignUpPageState extends State<SignUpPage> {
           parameters: {
             'error_type': 'auth_error',
             'error_code': e.code,
-            'error_message': e.message,
+            'error_message': e.message ?? 'Unknown error',
           },
         );
       }
