@@ -291,6 +291,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           controller: _firstNameController,
                           placeholder: 'First Name',
                           padding: const EdgeInsets.all(16),
+                          textCapitalization: TextCapitalization.words,
                           decoration: BoxDecoration(
                             color: CupertinoColors.systemGrey6,
                             borderRadius: BorderRadius.circular(8),
@@ -301,6 +302,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           controller: _lastNameController,
                           placeholder: 'Last Name',
                           padding: const EdgeInsets.all(16),
+                          textCapitalization: TextCapitalization.words,
                           decoration: BoxDecoration(
                             color: CupertinoColors.systemGrey6,
                             borderRadius: BorderRadius.circular(8),

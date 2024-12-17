@@ -31,6 +31,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   File? _profileImage;
   List<bool> _selectedRestrictions = [false, false, false, false];
   String _username = '';
+  final TextEditingController _deleteConfirmController =
+      TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   void dispose() {
@@ -38,6 +41,8 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     _lastNameController.dispose();
     _dobController.dispose();
     _bioController.dispose();
+    _deleteConfirmController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -179,6 +184,88 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     );
   }
 
+  Future<void> _handleDeleteAccount() async {
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: const Text('Delete Account'),
+          content: Column(
+            children: [
+              const Text(
+                  'This action cannot be undone. To confirm, please type "DELETE" and enter your password.'),
+              const SizedBox(height: 10),
+              CupertinoTextField(
+                controller: _deleteConfirmController,
+                placeholder: 'Type DELETE',
+                padding: const EdgeInsets.all(8),
+              ),
+              const SizedBox(height: 10),
+              CupertinoTextField(
+                controller: _passwordController,
+                placeholder: 'Enter password',
+                obscureText: true,
+                padding: const EdgeInsets.all(8),
+              ),
+            ],
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () {
+                _deleteConfirmController.clear();
+                _passwordController.clear();
+                Navigator.of(context).pop();
+              },
+              isDefaultAction: true,
+              child: const Text('Cancel'),
+            ),
+            CupertinoDialogAction(
+              onPressed: () async {
+                if (_deleteConfirmController.text != 'DELETE') {
+                  _showErrorDialog('Please type "DELETE" to confirm');
+                  return;
+                }
+
+                try {
+                  // Re-authenticate user
+                  final user = _auth.currentUser!;
+                  final email = user.email!;
+                  final credential = EmailAuthProvider.credential(
+                    email: email,
+                    password: _passwordController.text,
+                  );
+                  await user.reauthenticateWithCredential(credential);
+
+                  // Delete user data from Firestore
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .delete();
+
+                  // Delete user account
+                  await user.delete();
+
+                  // Clear controllers
+                  _deleteConfirmController.clear();
+                  _passwordController.clear();
+
+                  // Navigate to startup screen
+                  Navigator.of(context)
+                      .pushNamedAndRemoveUntil('/startup', (route) => false);
+                } catch (e) {
+                  Navigator.of(context).pop(); // Close the dialog
+                  _showErrorDialog('Error deleting account: ${e.toString()}');
+                }
+              },
+              isDestructiveAction: true,
+              child: const Text('Delete Account'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
@@ -309,6 +396,29 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   child: const Center(
                     child: Text(
                       'Logout',
+                      style: TextStyle(
+                        color: CupertinoColors.destructiveRed,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              CupertinoButton(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                onPressed: _handleDeleteAccount,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: CupertinoColors.destructiveRed),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Delete Account',
                       style: TextStyle(
                         color: CupertinoColors.destructiveRed,
                         fontSize: 16,
