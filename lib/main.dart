@@ -19,6 +19,10 @@ import 'package:fluttertest/pages/inspectPost_page.dart';
 import 'package:fluttertest/pages/followers_list.dart';
 import 'package:fluttertest/pages/following_list.dart';
 import 'services/messaging_service.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+
+// Create a global analytics instance
+final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +32,9 @@ void main() async {
 
   // Initialize messaging service
   await MessagingService.initialize();
+
+  // Enable analytics collection
+  await analytics.setAnalyticsCollectionEnabled(true);
 
   runApp(const MyApp());
 }
@@ -39,6 +46,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return CupertinoApp(
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [
+        FirebaseAnalyticsObserver(analytics: analytics),
+      ],
       theme: const CupertinoThemeData(
         brightness: Brightness.light,
         primaryColor: Color(0xFF25242A),

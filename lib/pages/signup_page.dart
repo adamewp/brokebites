@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/keychain_service.dart';
 import '../services/passkey_service.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -84,11 +85,23 @@ class _SignUpPageState extends State<SignUpPage> {
     // Validate all fields first
     if (!_emailsMatch) {
       _showErrorDialog('Emails do not match.');
+      await FirebaseAnalytics.instance.logEvent(
+        name: 'signup_error',
+        parameters: {
+          'error_type': 'email_mismatch',
+        },
+      );
       return;
     }
 
     if (!_passwordsMatch) {
       _showErrorDialog('Passwords do not match.');
+      await FirebaseAnalytics.instance.logEvent(
+        name: 'signup_error',
+        parameters: {
+          'error_type': 'password_mismatch',
+        },
+      );
       return;
     }
 
@@ -96,6 +109,12 @@ class _SignUpPageState extends State<SignUpPage> {
         _firstNameController.text.isEmpty ||
         _lastNameController.text.isEmpty) {
       _showErrorDialog('All fields are required.');
+      await FirebaseAnalytics.instance.logEvent(
+        name: 'signup_error',
+        parameters: {
+          'error_type': 'missing_fields',
+        },
+      );
       return;
     }
 
@@ -111,6 +130,12 @@ class _SignUpPageState extends State<SignUpPage> {
 
       if (existingUser.docs.isNotEmpty) {
         _showErrorDialog('Username already taken. Please choose another one.');
+        await FirebaseAnalytics.instance.logEvent(
+          name: 'signup_error',
+          parameters: {
+            'error_type': 'username_taken',
+          },
+        );
         setState(() => _isLoading = false);
         return;
       }
@@ -120,6 +145,12 @@ class _SignUpPageState extends State<SignUpPage> {
           .fetchSignInMethodsForEmail(_emailController.text);
       if (emailExists.isNotEmpty) {
         _showErrorDialog('Email already in use. Please use a different email.');
+        await FirebaseAnalytics.instance.logEvent(
+          name: 'signup_error',
+          parameters: {
+            'error_type': 'email_exists',
+          },
+        );
         setState(() => _isLoading = false);
         return;
       }
@@ -130,6 +161,9 @@ class _SignUpPageState extends State<SignUpPage> {
         email: _emailController.text,
         password: _passwordController.text,
       );
+
+      // Log successful account creation
+      await FirebaseAnalytics.instance.logSignUp(signUpMethod: 'email');
 
       // Save user details to Firestore
       await FirebaseFirestore.instance
@@ -150,12 +184,24 @@ class _SignUpPageState extends State<SignUpPage> {
       if (_isPasskeyAvailable) {
         await _showPasskeyPrompt(
             _emailController.text, _passwordController.text, username);
+        await FirebaseAnalytics.instance.logEvent(
+          name: 'passkey_prompt_shown',
+          parameters: {
+            'user_id': userCredential.user?.uid,
+          },
+        );
       } else if (_rememberMe) {
         // Fall back to keychain if Passkey is not available
         await _keychainService.saveCredentials(
           email: _emailController.text,
           password: _passwordController.text,
           username: username,
+        );
+        await FirebaseAnalytics.instance.logEvent(
+          name: 'credentials_saved_to_keychain',
+          parameters: {
+            'user_id': userCredential.user?.uid,
+          },
         );
       }
 
@@ -168,6 +214,14 @@ class _SignUpPageState extends State<SignUpPage> {
       String errorMessage = 'An error occurred. Please try again.';
       if (e is FirebaseAuthException) {
         errorMessage = e.message ?? errorMessage;
+        await FirebaseAnalytics.instance.logEvent(
+          name: 'signup_error',
+          parameters: {
+            'error_type': 'auth_error',
+            'error_code': e.code,
+            'error_message': e.message,
+          },
+        );
       }
       _showErrorDialog(errorMessage);
     } finally {
