@@ -29,17 +29,6 @@ import FirebaseMessaging
 
     GeneratedPluginRegistrant.register(with: self)
 
-    // Set up appearance change observer
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(updateAppIcon),
-      name: UIApplication.significantTimeChangeNotification,
-      object: nil
-    )
-
-    // Initial icon setup
-    updateAppIcon()
-
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -48,18 +37,5 @@ import FirebaseMessaging
                           fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
     Messaging.messaging().appDidReceiveMessage(userInfo)
     completionHandler(.newData)
-  }
-
-  @objc private func updateAppIcon() {
-    let isDarkMode = UITraitCollection.current.userInterfaceStyle == .dark
-    let iconName = isDarkMode ? "AppIcon-Dark" : nil // nil will use the primary icon
-
-    if UIApplication.shared.alternateIconName != iconName {
-      UIApplication.shared.setAlternateIconName(iconName) { error in
-        if let error = error {
-          print("Error changing app icon: \(error.localizedDescription)")
-        }
-      }
-    }
   }
 }
